@@ -17,10 +17,10 @@ TIMER0_RELOAD EQU ((65536-(CLK/TIMER0_RATE)))
 TIMER2_RATE   EQU 1000     ; 1000Hz, for a timer tick of 1ms
 TIMER2_RELOAD EQU ((65536-(CLK/TIMER2_RATE)))
 
-DONE_BUTTON   equ P2.1
-Button_1	  equ P0.1
-Button_2	  equ P0.3
-Button_3	  equ P0.5
+DONE_BUTTON   EQU P2.1 ;4
+Button_1      EQU P0.1 ;1
+Button_2      EQU P0.3 ;2
+Button_3      EQU P0.5 ;3
    
 dseg at 30H ; This area is for direct access variables
 ;--->
@@ -46,7 +46,8 @@ LCD_D6 equ P3.4
 LCD_D7 equ P3.5
 
 $NOLIST
-$include(LCD_4bit.inc) 	; A library of LCD related functions and utility macros
+$include(macros3.inc) ;includes LCD_4bit.inc
+;$include(LCD_4bit.inc) 	; A library of LCD related functions and utility macros
 $LIST
 
 $NOLIST
@@ -78,23 +79,16 @@ LOOP_MAIN:
 	Set_Cursor(1,6)
 	Send_Constant_String(#Time_Message)
 	
-	
-	jb Button_1, NEXT1
-	Wait_Milli_Seconds(#50)	
-	jb Button_1, NEXT1
-	jnb Button_1, $
+	push_button(#1)
+	jz NEXT1
 	lcall STATE_change
 NEXT1:	
-	jb Button_2, NEXT2
-	Wait_Milli_Seconds(#50)	
-	jb Button_2, NEXT2
-	jnb Button_2, $
+	push_button(#2)
+	jz NEXT2
 	lcall TIME_change
 NEXT2:
-	jb Button_3, NEXT3
-	Wait_Milli_Seconds(#50)	
-	jb Button_3, NEXT3
-	jnb Button_3, $
+	push_button(#3)
+	jz NEXT3
 	lcall TEMP_change
 NEXT3:
 	
@@ -126,10 +120,8 @@ STATE_change:
 	WriteCommand(#0x01) ;Clears the LCD
 	Wait_Milli_Seconds(#10) ;Wait for the clear to finish
 SM_cont:
-	jb DONE_BUTTON, SM_write
-	Wait_Milli_Seconds(#50)	
-	jb DONE_BUTTON, SM_write
-	jnb DONE_BUTTON, $
+	push_button(#4)
+	jz SM_write
 	WriteCommand(#0x28)
 	WriteCommand(#0x0c)
 	WriteCommand(#0x01) ;Clears the LCD
@@ -141,18 +133,14 @@ SM_write:
 	ljmp SM_cont
 SM_ret:
 	ret
-
-
 TIME_change:
 	WriteCommand(#0x28)
 	WriteCommand(#0x0c)
 	WriteCommand(#0x01) ;Clears the LCD
 	Wait_Milli_Seconds(#10) ;Wait for the clear to finish
 TIME_cont:
-	jb DONE_BUTTON, TIME_write
-	Wait_Milli_Seconds(#50)	
-	jb DONE_BUTTON, TIME_write
-	jnb DONE_BUTTON, $
+	push_button(#4)
+	jz TIME_write
 	WriteCommand(#0x28)
 	WriteCommand(#0x0c)
 	WriteCommand(#0x01) ;Clears the LCD
@@ -164,18 +152,14 @@ TIME_write:
 	ljmp TIME_cont
 TIME_ret:
 	ret
-
-	
 TEMP_change:
 	WriteCommand(#0x28)
 	WriteCommand(#0x0c)
 	WriteCommand(#0x01) ;Clears the LCD
 	Wait_Milli_Seconds(#10) ;Wait for the clear to finish
 TEMP_cont:
-	jb DONE_BUTTON, TEMP_write
-	Wait_Milli_Seconds(#50)	
-	jb DONE_BUTTON, TEMP_write
-	jnb DONE_BUTTON, $
+	push_button(#4)
+	jz TEMP_write
 	WriteCommand(#0x28)
 	WriteCommand(#0x0c)
 	WriteCommand(#0x01) ;Clears the LCD
