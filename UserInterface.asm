@@ -17,7 +17,7 @@ TIMER0_RELOAD EQU ((65536-(CLK/TIMER0_RATE)))
 TIMER2_RATE   EQU 1000     ; 1000Hz, for a timer tick of 1ms
 TIMER2_RELOAD EQU ((65536-(CLK/TIMER2_RATE)))
 
-BOOT_BUTTON   equ P4.5
+DONE_BUTTON   equ P2.1
 Button_1	  equ P0.1
 Button_2	  equ P0.3
 Button_3	  equ P0.5
@@ -58,7 +58,7 @@ Temp_Message:	db '>TEMP', 0
 State_Message:	db '>STATE', 0
 Time_Message:	db '>TIME', 0
 Blank_Message:	db ' ', 0
-TEST_1:			db '< Boot to EXIT >'
+TEST_1:			db '<"DONE" TO EXIT>'
 ;----------------------------------------------;
 
 ;-----------------------;
@@ -83,19 +83,19 @@ LOOP_MAIN:
 	Wait_Milli_Seconds(#50)	
 	jb Button_1, NEXT1
 	jnb Button_1, $
-	ljmp STATE_change
+	lcall STATE_change
 NEXT1:	
 	jb Button_2, NEXT2
 	Wait_Milli_Seconds(#50)	
 	jb Button_2, NEXT2
 	jnb Button_2, $
-	ljmp TIME_change
+	lcall TIME_change
 NEXT2:
 	jb Button_3, NEXT3
 	Wait_Milli_Seconds(#50)	
 	jb Button_3, NEXT3
 	jnb Button_3, $
-	ljmp TEMP_change
+	lcall TEMP_change
 NEXT3:
 	
 	ljmp LOOP_MAIN
@@ -121,65 +121,71 @@ go_to_END:
 ;-----------------------;
 
 STATE_change:
-	;WriteCommand(#0x28)
-	;WriteCommand(#0x0c)
+	WriteCommand(#0x28)
+	WriteCommand(#0x0c)
 	WriteCommand(#0x01) ;Clears the LCD
 	Wait_Milli_Seconds(#10) ;Wait for the clear to finish
 SM_cont:
-	jb BOOT_BUTTON, SM_ret
+	jb DONE_BUTTON, SM_write
 	Wait_Milli_Seconds(#50)	
-	jb BOOT_BUTTON, SM_ret
-	jnb BOOT_BUTTON, $
+	jb DONE_BUTTON, SM_write
+	jnb DONE_BUTTON, $
+	WriteCommand(#0x28)
+	WriteCommand(#0x0c)
+	WriteCommand(#0x01) ;Clears the LCD
+	Wait_Milli_Seconds(#10) ;Wait for the clear to finish
+	ljmp SM_ret
+SM_write:
 	Set_Cursor(2,1)
 	Send_Constant_String(#TEST_1)
 	ljmp SM_cont
 SM_ret:
-	;WriteCommand(#0x28)
-	;WriteCommand(#0x0c)
-	WriteCommand(#0x01) ;Clears the LCD
-	Wait_Milli_Seconds(#10) ;Wait for the clear to finish
 	ret
 
 
 TIME_change:
-	;WriteCommand(#0x28)
-	;WriteCommand(#0x0c)
+	WriteCommand(#0x28)
+	WriteCommand(#0x0c)
 	WriteCommand(#0x01) ;Clears the LCD
 	Wait_Milli_Seconds(#10) ;Wait for the clear to finish
 TIME_cont:
-	jb BOOT_BUTTON, TIME_ret
+	jb DONE_BUTTON, TIME_write
 	Wait_Milli_Seconds(#50)	
-	jb BOOT_BUTTON, TIME_ret
-	jnb BOOT_BUTTON, $
+	jb DONE_BUTTON, TIME_write
+	jnb DONE_BUTTON, $
+	WriteCommand(#0x28)
+	WriteCommand(#0x0c)
+	WriteCommand(#0x01) ;Clears the LCD
+	Wait_Milli_Seconds(#10) ;Wait for the clear to finish
+	ljmp TIME_ret
+TIME_write:
 	Set_Cursor(2,1)
 	Send_Constant_String(#TEST_1)
 	ljmp TIME_cont
 TIME_ret:
-	;WriteCommand(#0x28)
-	;WriteCommand(#0x0c)
-	WriteCommand(#0x01) ;Clears the LCD
-	Wait_Milli_Seconds(#10) ;Wait for the clear to finish
 	ret
 
 	
 TEMP_change:
-	;WriteCommand(#0x28)
-	;WriteCommand(#0x0c)
+	WriteCommand(#0x28)
+	WriteCommand(#0x0c)
 	WriteCommand(#0x01) ;Clears the LCD
 	Wait_Milli_Seconds(#10) ;Wait for the clear to finish
 TEMP_cont:
-	jb BOOT_BUTTON, TEMP_ret
+	jb DONE_BUTTON, TEMP_write
 	Wait_Milli_Seconds(#50)	
-	jb BOOT_BUTTON, TEMP_ret
-	jnb BOOT_BUTTON, $
-	Set_Cursor(2,1)
-	Send_Constant_String(#TEST_1)
-	ljmp TEMP_cont	
-TEMP_ret:
-	;WriteCommand(#0x28)
-	;WriteCommand(#0x0c)
+	jb DONE_BUTTON, TEMP_write
+	jnb DONE_BUTTON, $
+	WriteCommand(#0x28)
+	WriteCommand(#0x0c)
 	WriteCommand(#0x01) ;Clears the LCD
 	Wait_Milli_Seconds(#10) ;Wait for the clear to finish
+	ljmp TEMP_ret
+TEMP_write:
+	Set_Cursor(2,1)
+	Send_Constant_String(#TEST_1)
+	ljmp TEMP_cont
+TEMP_ret:
 	ret
 ;----------------------------------------------;
 
