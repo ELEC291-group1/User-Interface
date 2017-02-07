@@ -1,5 +1,5 @@
 ; Christian Schroeder
-; Hannah Sawiuk
+; Hannah Sawiuk is the best
 ; Jake Osborne
 ; ELEC 291, Project 1, Reflow Oven Controller
 ; Main file
