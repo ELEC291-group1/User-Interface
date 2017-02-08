@@ -57,8 +57,11 @@ bcd: 				ds 5 ;Temperature in degrees
 Curr_Runtime: 		ds 5
 x: 					ds 4
 y: 					ds 4
-soak_time:			ds 1
-reflow_time:		ds 1	
+BCD_temp:			ds 2
+BCD_soak_temp:		ds 2
+BCD_reflow_temp:	ds 2	
+BCD_soak_time:		ds 2
+BCD_reflow_time:	ds 2	
 
 
 ;///////////////
@@ -144,9 +147,11 @@ choose_soak:	db '>Soak         B1', 0
 choose_reflow:	db '>Reflow       B2', 0
 temp_soak:		db 'Soak Temp:', 0
 temp_reflow:	db 'Reflow Temp:', 0
+time_soak:		db 'Soak Time:', 0
+time_reflow:	db 'Reflow Time:', 0
 no_state:		db 'NO STATE CHOSEN.'
-setTemp_guide:	db 'xxx deg.C', 0
-
+setTemp_guide:	db 'xxxx deg.C', 0
+setTime_guide:	db 'xx:xx MIN/SEC', 0
 
 
 ;///////////////////
@@ -218,6 +223,16 @@ MainProgram:
 	
 	clr soak_menu_flag
 	clr reflow_menu_flag
+	
+	mov BCD_soak_temp, 		#0x40
+	mov BCD_soak_temp+1, 	#0x01
+	mov BCD_reflow_temp, 	#0x19
+	mov BCD_reflow_temp+1,	#0x02
+	
+	mov BCD_soak_time, 		#0x00
+	mov BCD_soak_time+1,	#0x01
+	mov BCD_reflow_time, 	#0x30
+	mov BCD_reflow_time+1,	#0x00
 	
     clr Abort_Flag
     clr SoakState_Flag
@@ -336,10 +351,84 @@ TimeMenu_Loop: ;Internal loop so the screen isn't constantly cleared
 	jz TimeMenu_Loop_P2
 	ljmp BackToMain
 TimeMenu_Loop_P2:
+	
+	jnb soak_menu_flag, TimeMenu_Loop_P3
+	Set_Cursor(1,1)
+	Send_Constant_String(#time_soak)
 	Set_Cursor(2,1)
-	Send_Constant_String(#TEST_1)
-	Wait_Milli_Seconds(#20)
-	sjmp TimeMenu_Loop
+	Send_Constant_String(#setTime_guide)
+	ljmp set_time_soak
+TimeMenu_Loop_P3:
+	jnb reflow_menu_flag, TimeMenu_Loop_P4
+	Set_Cursor(1,1)
+	Send_Constant_String(#time_reflow)
+	Set_Cursor(2,1)
+	Send_Constant_String(#setTime_guide)
+	ljmp set_time_reflow
+
+TimeMenu_Loop_P4:
+	Set_Cursor(2,1)
+	Send_Constant_String(#no_state)
+	ljmp TimeMenu_Loop
+	
+	
+	
+set_time_soak:
+
+sTime_s_main:
+	push_button(#4)
+	jz sTime_s_L1
+	ljmp BackToMain
+	
+sTime_s_L1:
+sTime_s_increment:
+	push_button(#1)
+	jz sTime_s_write_BCD
+	mov a, BCD_soak_time
+	add a, #0x01
+	da a
+	mov BCD_soak_time, a
+	cjne a, #0x31, sTime_s_write_BCD
+	mov BCD_soak_time, #0x00
+	
+sTime_s_write_BCD:	
+	Set_Cursor(2,1)
+	Display_BCD(BCD_soak_time+1)
+	Set_Cursor(2,4)
+	Display_BCD(BCD_soak_time)
+	ljmp sTime_s_main
+	
+
+	
+set_time_reflow:
+
+sTime_r_main:
+	push_button(#4)
+	jz sTime_r_L1
+	ljmp BackToMain
+	
+sTime_r_L1:
+sTime_r_increment:
+	push_button(#1)
+	jz sTime_r_write_BCD
+	mov a, BCD_reflow_time
+	add a, #0x01
+	da a
+	mov BCD_reflow_time, a
+	cjne a, #0x60, sTime_r_increment_1
+	mov BCD_reflow_time, #0x00
+	mov BCD_reflow_time+1, #0x01
+sTime_r_increment_1:	
+	cjne a, #0x01, sTime_r_write_BCD
+	mov BCD_reflow_time+1, #0x00
+	mov BCD_reflow_time, #0x30
+	
+sTime_r_write_BCD:	
+	Set_Cursor(2,1)
+	Display_BCD(BCD_reflow_time+1)
+	Set_Cursor(2,4)
+	Display_BCD(BCD_reflow_time)
+	ljmp sTime_r_main
 ;------------------------------------------------------------------------------;
 
 ;------------------------------------------------------------------------------;
@@ -381,12 +470,36 @@ TempMenu_Loop_P4:
 	
 	
 set_temp_soak:
-	
+
 sts_main:
 	push_button(#4)
 	jz sts_L1
 	ljmp BackToMain
+	
 sts_L1:
+sts_increment:
+	push_button(#1)
+	jz sts_write_BCD
+	mov a, BCD_soak_temp
+	add a, #0x01
+	da a
+	mov BCD_soak_temp, a
+	cjne a, #0x01, sts_increment_1
+	mov BCD_soak_temp, #0x40
+	mov BCD_soak_temp+1, #0x01
+	ljmp sts_write_BCD
+sts_increment_1:	
+	cjne a, #0x00, sts_write_BCD
+	mov a, BCD_soak_temp+1
+	add a, #0x01
+	da a
+	mov BCD_soak_temp+1, a
+	
+sts_write_BCD:	
+	Set_Cursor(2,1)
+	Display_BCD(BCD_soak_temp+1)
+	Set_Cursor(2,3)
+	Display_BCD(BCD_soak_temp)
 	ljmp sts_main
 
 	
@@ -397,7 +510,23 @@ str_main:
 	push_button(#4)
 	jz str_L1
 	ljmp BackToMain
+	
 str_L1:
+str_increment:
+	push_button(#1)
+	jz str_write_BCD
+	mov a, BCD_reflow_temp
+	add a, #0x01
+	da a
+	mov BCD_reflow_temp, a
+	cjne a, #0x36, str_write_BCD
+	mov BCD_reflow_temp, #0x19
+	
+str_write_BCD:	
+	Set_Cursor(2,1)
+	Display_BCD(BCD_reflow_temp+1)
+	Set_Cursor(2,3)
+	Display_BCD(BCD_reflow_temp)
 	ljmp str_main
 ;------------------------------------------------------------------------------;
 
