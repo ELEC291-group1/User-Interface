@@ -52,14 +52,17 @@ TIMER2_RELOAD EQU ((65536-(CLK/TIMER2_RATE)))
 
 DSEG at 30H
 
-Result: ds 2
-bcd: ds 5 ;Temperature in degrees
-Curr_Runtime: ds 5
-x: ds 4
-y: ds 4
+Result: 			ds 2
+bcd: 				ds 5 ;Temperature in degrees
+Curr_Runtime: 		ds 5
+x: 					ds 4
+y: 					ds 4
+soak_time:			ds 1
+reflow_time:		ds 1	
+
 
 ;///////////////
-;////Flags////
+;////Flags//////
 ;///////////////
 
 BSEG
@@ -139,6 +142,10 @@ soak_message:	db ' Soak         B1', 0
 reflow_message:	db ' Reflow       B2', 0
 choose_soak:	db '>Soak         B1', 0
 choose_reflow:	db '>Reflow       B2', 0
+temp_soak:		db 'Soak Temp:', 0
+temp_reflow:	db 'Reflow Temp:', 0
+no_state:		db 'NO STATE CHOSEN.'
+setTemp_guide:	db 'xxx deg.C', 0
 
 
 
@@ -191,7 +198,7 @@ InitSerialPort:
     ret
   
 
-
+;------------------------------------------------------------------------------;
 ;/////////////
 ;///MAIN//////
 ;///////CODE//
@@ -255,7 +262,9 @@ Initialize_Checker:
 	
 Back2Menu:
 	ljmp MenuLoop
-
+;------------------------------------------------------------------------------;
+	
+;------------------------------------------------------------------------------;
 StateMenu:
 	;Display State and clear old screen
 	;If B1 pressed, change state between Reflow/Soak
@@ -309,7 +318,9 @@ StateMenu_Loop_P3:
 	
 StateMenu_loop_P4:
 	ljmp StateMenu_Loop
+;------------------------------------------------------------------------------;	
 	
+;------------------------------------------------------------------------------;
 TimeMenu:
 	;Display Time
 	;If B1 pressed, increment time BCD value (we'll need to check what state's time is being changed via flag maybe)
@@ -329,7 +340,9 @@ TimeMenu_Loop_P2:
 	Send_Constant_String(#TEST_1)
 	Wait_Milli_Seconds(#20)
 	sjmp TimeMenu_Loop
-	
+;------------------------------------------------------------------------------;
+
+;------------------------------------------------------------------------------;
 TempMenu:
 	;Display Time
 	;If B1 pressed, increment temp BCD value (we'll need to check what state's temp is being changed via flag maybe)
@@ -345,11 +358,50 @@ TempMenu_Loop: ;Internal loop so the screen isn't constantly cleared
 	jz TempMenu_Loop_P2
 	ljmp BackToMain
 TempMenu_Loop_P2:
-	Set_Cursor(2,1)
-	Send_Constant_String(#TEST_1)
-	Wait_Milli_Seconds(#20)
-	sjmp TempMenu_Loop
 	
+	jnb soak_menu_flag, TempMenu_Loop_P3
+	Set_Cursor(1,1)
+	Send_Constant_String(#temp_soak)
+	Set_Cursor(2,1)
+	Send_Constant_String(#setTemp_guide)
+	ljmp set_temp_soak
+TempMenu_Loop_P3:
+	jnb reflow_menu_flag, TempMenu_Loop_P4
+	Set_Cursor(1,1)
+	Send_Constant_String(#temp_reflow)
+	Set_Cursor(2,1)
+	Send_Constant_String(#setTemp_guide)
+	ljmp set_temp_reflow
+
+TempMenu_Loop_P4:
+	Set_Cursor(2,1)
+	Send_Constant_String(#no_state)
+	ljmp TempMenu_Loop
+	
+	
+	
+set_temp_soak:
+	
+sts_main:
+	push_button(#4)
+	jz sts_L1
+	ljmp BackToMain
+sts_L1:
+	ljmp sts_main
+
+	
+	
+set_temp_reflow:	
+
+str_main:
+	push_button(#4)
+	jz str_L1
+	ljmp BackToMain
+str_L1:
+	ljmp str_main
+;------------------------------------------------------------------------------;
+
+;------------------------------------------------------------------------------;
 BackToMain:
 	WriteCommand(#0x28)
 	WriteCommand(#0x0c)
