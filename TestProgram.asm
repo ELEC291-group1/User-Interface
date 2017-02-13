@@ -7,6 +7,14 @@ $MODLP52
 
 org 0x0000
    ljmp MainProgram
+   
+; Timer/Counter 0 overflow interrupt vector
+org 0x000B
+	ljmp Timer0_ISR
+	
+; Timer/Counter 2 overflow interrupt vector
+org 0x002B
+	ljmp Timer2_ISR
 
 ;Macro that needs to be used by Macros.inc, as well as LCD_4Bit.inc, so it's included here to work for everything
 ;---------------------------------;
@@ -30,12 +38,9 @@ L1: djnz R0, L1 ; 3 cycles->3*45.21123ns*166=22.51519us
     pop AR1
     pop AR0
     ret
-;/////////////////////////////////////
-
-
-;//////////
-;Constants/
-;//////////
+;-------------------------------------------;
+;               Constants                   ;
+;-------------------------------------------;
 
 MAX_TEMP equ 230 
 CLK  equ 22118400
@@ -46,32 +51,41 @@ TIMER0_RELOAD EQU ((65536-(CLK/TIMER0_RATE)))
 TIMER2_RATE   EQU 1000     ; 1000Hz, for a timer tick of 1ms
 TIMER2_RELOAD EQU ((65536-(CLK/TIMER2_RATE)))   
 
-;//////////
-;Variables/
-;//////////
+;-------------------------------------------;
+;                Variables                  ;
+;-------------------------------------------;
 
 DSEG at 30H
 
-Result: 			ds 2
-bcd: 				ds 5 ;Temperature in degrees
-Curr_Runtime: 		ds 5
-x: 					ds 4
-y: 					ds 4
-BCD_temp:			ds 2
-BCD_soak_temp:		ds 2
-BCD_reflow_temp:	ds 2	
-BCD_soak_time:		ds 2
-BCD_reflow_time:	ds 2	
+Temperature:	 ds 5 ;temperature BCD value
+Count1ms: 		 ds 2 ; used to count for one second
 
+Secs_BCD:		 ds 5 ;These two values are for the displayed runtime
+Mins_BCD:		 ds 5
 
-;///////////////
-;////Flags//////
-;///////////////
+;Runtime:		 ds 5 ;This value is the internal runtime for comparisons (Not needed anymore with new comparison method)
+
+BCD_soak_temp: 	 ds 5 ;BCD value of Soak state temperature setting
+BCD_soak_time: 	 ds 5 ;BCD values of set soak time in seconds
+BCD_reflow_temp: ds 5
+BCD_reflow_time: ds 5
+ReflowTime_Secs: ds 5
+ReflowTime_Mins: ds 5
+power:			 ds 5
+
+;arithmetic variables
+x: 			 	 ds 4
+y: 		   		 ds 4
+Result: 		 ds 2	
+
+;-------------------------------------------;
+;                  Flags                    ;
+;-------------------------------------------;
 
 BSEG
 
 ;State Flags - Only one flag on at once 
-PreheatState_Flag: dbit 1
+PreheatState_Flag:      dbit 1
 SoakState_Flag: 		dbit 1
 RampState_Flag:	 		dbit 1
 ReflowState_Flag: 		dbit 1
@@ -82,59 +96,46 @@ reflow_menu_flag:		dbit 1
 
 ;Transition Flag turns on when state is changing, and turns off shortly afterwards
 ;Use with State flags in logic in order to determine what to do eg. beeps to play when x state is (just recently) on and transition flag is on as well
-Transition_Flag: dbit 1 
+Transition_Flag: 		dbit 1 
 
-CoolEnoughToOpen_Flag: dbit 1
+CoolEnoughToOpen_Flag: 	dbit 1
 CoolEnoughToTouch_Flag: dbit 1
+Cooldowntouch_Flag: 	dbit 1
+DoorOpen_Flag: 			dbit 1
 
-;Math Flag for use with math32.inc
-mf: dbit 1 
+mf: 					dbit 1 ;Math Flag for use with math32.inc
 
-Abort_Flag: dbit 1
+Abort_Flag: 			dbit 1
+Seconds_flag: 			dbit 1
 
-;/////////////////
-;Pins and strings/
-;/////////////////
+;-------------------------------------------;
+;         Pins and Constant Strings         ;
+;-------------------------------------------;
 
 CSEG
 ;ADC Master/Slave pins
-CE_ADC EQU P2.0
+CE_ADC  EQU P2.0
 MY_MOSI EQU P2.1
 MY_MISO EQU P2.2
 MY_SCLK EQU P2.3
 
 ;LCD pins
-LCD_RS equ P1.2
-LCD_RW equ P1.3
-LCD_E  equ P1.4
-LCD_D4 equ P3.2
-LCD_D5 equ P3.3
-LCD_D6 equ P3.4
-LCD_D7 equ P3.5
+LCD_RS  EQU P1.2
+LCD_RW  EQU P1.3
+LCD_E   EQU P1.4
+LCD_D4  EQU P3.2
+LCD_D5  EQU P3.3
+LCD_D6  EQU P3.4
+LCD_D7  EQU P3.5
 
-SOUND_OUT equ p0.0 ;Temp value, modify to whatever pin is attached to speaker
+SOUND_OUT EQU P0.0 ;Temp value, modify to whatever pin is attached to speaker
 
 ;Pushbutton pins
 Button_1      EQU P0.1 ;1
 Button_2      EQU P0.3 ;2
 Button_3      EQU P0.5 ;3
 DONE_BUTTON   EQU P2.5 ;4
-
-;///////////////
-;Include Files//
-;///////////////
-
-$NOLIST
-$include(macros.inc) ;Includes LCD_4Bit macros and all other necessary macros
-$LIST
-
-$NOLIST
-$include(math32.inc) ; for math functions
-$LIST
-
-$NOLIST
-$include(LCD_4Bit.inc)
-$LIST
+BOOT_BUTTON   EQU P4.5 ;5
 
 ;Main Menu Strings
 Temp_Message:	db '>TEMP', 0
@@ -153,10 +154,42 @@ no_state:		db 'NO STATE CHOSEN.'
 setTemp_guide:	db 'xxxx deg.C', 0
 setTime_guide:	db 'xx:xx MIN/SEC', 0
 
+;Runtime Strings           1234567890123456
+Runtime_Message:       db 'xx:xx', 0
+Current_Temp_Message:  db 'xxxx C', 0
+State_Message_Runtime: db 'State: xxxxxxxxx', 0
 
-;///////////////////
-;SPI Initialization/
-;///////////////////
+;State Display Strings     1234567890123456
+Off_Display:	  db      'OFF      ', 0
+Preheat_Display:  db      'PREHEAT  ', 0
+Soak_Display:     db      'SOAK     ', 0
+Ramp_Display:     db      'RAMP     ', 0
+Reflow_Display:   db      'REFLOW   ', 0
+Cooldown_Display: db      'COOLDOWN ', 0
+Done_Display:     db 	  'DONE     ', 0
+
+;Misc Strings
+Abort_String: 	  db 'PROCESS ABORTED', 0
+
+;-------------------------------------------;
+;               Include Files               ;
+;-------------------------------------------;
+
+$NOLIST
+$include(macros.inc) ;Includes LCD_4Bit macros and all other necessary macros
+$LIST
+
+$NOLIST
+$include(math32.inc) ; for math functions
+$LIST
+
+$NOLIST
+$include(LCD_4Bit.inc)
+$LIST
+
+;-------------------------------------------;
+;            SPI Initialization             ;
+;-------------------------------------------;
 
 INIT_SPI:
 	setb MY_MISO ; Make MISO an input pin
@@ -178,10 +211,9 @@ DO_SPI_G_LOOP:
 	clr MY_SCLK
 	djnz R2, DO_SPI_G_LOOP
 	ret
-
-;///////////////////////////
-;Serial Port Initialization/
-;///////////////////////////
+;-------------------------------------------;
+;        Serial Port Initialization         ;
+;-------------------------------------------;
 
 ; Configure the serial port and baud rate using timer 1
 InitSerialPort:
@@ -201,14 +233,150 @@ InitSerialPort:
 	setb TR1
 	mov	SCON,#0x52
     ret
-  
 
-;------------------------------------------------------------------------------;
-;/////////////
-;///MAIN//////
-;///////CODE//
-;/////////////
-   
+;-------------------------------------------;
+;     Converting Voltage to Temperature     ;
+;-------------------------------------------;
+ConvertNum:
+    mov y+0,Result
+    mov y+1,Result+1
+    mov y+2,#0
+    mov y+3,#0
+    load_x(37); 1/(41e^-6 * 330) ~= 74
+    lcall mul32
+    lcall hex2bcd
+    ret  
+;-------------------------------------------;
+;         Timer 0 Initialization            ;
+;-------------------------------------------;
+Timer0_Init:
+	mov a, TMOD
+	anl a, #0xf0 ; Clear the bits for timer 0
+	orl a, #0x01 ; Configure timer 0 as 16-timer
+	mov TMOD, a
+	mov TH0, #high(TIMER0_RELOAD)
+	mov TL0, #low(TIMER0_RELOAD)
+	; Enable the timer and interrupts
+    setb ET0  ; Enable timer 0 interrupt
+    setb TR0  ; Start timer 0
+	ret
+	
+;-------------------------------------------;
+;       	   Timer 0 ISR    		        ;
+;-------------------------------------------;
+Timer0_ISR:
+	;clr TF0  ; According to the data sheet this is done for us already.
+	; In mode 1 we need to reload the timer.
+	clr TR0
+	mov TH0, #high(TIMER0_RELOAD)
+	mov TL0, #low(TIMER0_RELOAD)
+	setb TR0
+	jb Transition_Flag, Transitionbeep
+	jb DoorOpen_Flag, Doorbeep
+	jb CoolEnoughToTouch_Flag, Touchbeep		
+	reti
+Transitionbeep:
+	Beep(#1, #0)
+	clr Transition_Flag
+	reti
+Doorbeep:
+	Beep(#1, #1)
+	clr DoorOpen_Flag
+	reti
+Touchbeep:
+	Beep(#6, #0)
+	clr CoolEnoughToTouch_Flag
+	reti
+	
+;-------------------------------------------;
+;         Timer 2 Initializiation           ;
+;-------------------------------------------; 
+Timer2_Init:
+	mov T2CON, #0 ; Stop timer/counter.  Autoreload mode.
+	mov RCAP2H, #high(TIMER2_RELOAD)
+	mov RCAP2L, #low(TIMER2_RELOAD)
+	; Init One millisecond interrupt counter.  It is a 16-bit variable made with two 8-bit parts
+	clr a
+	mov Count1ms+0, a
+	mov Count1ms+1, a
+	; Enable the timer and interrupts
+    setb ET2  ; Enable timer 2 interrupt
+    setb TR2  ; Enable timer 2
+	ret
+;-------------------------------------------;
+;                Timer 2 ISR                ;
+;-------------------------------------------;
+Timer2_ISR:
+	clr TF2  ; Timer 2 doesn't clear TF2 automatically. Do it in ISR
+	; The two registers used in the ISR must be saved in the stack
+	push acc
+	push psw
+	; Increment the 16-bit one mili second counter
+	inc Count1ms+0    ; Increment the low 8-bits first
+	mov a, Count1ms+0 ; If the low 8-bits overflow, then increment high 8-bits
+	jnz Inc_Done
+	inc Count1ms+1
+	
+Inc_Done:
+	; Check if a second has passed
+	mov a, Count1ms+0
+	cjne a, #low(1000), Timer2_ISR_done_redirect ; Warning: this instruction changes the carry flag!
+	mov a, Count1ms+1
+	cjne a, #high(1000), Timer2_ISR_done_redirect
+	sjmp SecondPassed
+
+Timer2_ISR_done_redirect:
+ljmp Timer2_ISR_done
+
+;Increment seconds bcd value every second, and minute every minute, resetting seconds
+SecondPassed:
+	; 1 second has passed.  Set a flag so the main program knows
+	setb Seconds_flag ; Let the main program know a second had passed
+	
+	jnb ReflowState_Flag, ContinueISR
+	;increment reflow
+	mov a, ReflowTime_Secs
+	add a,#0x01
+	da a
+	mov ReflowTime_Secs,a
+	cjne a,#0x60, ContinueISR
+	mov a,#0x00
+	da a
+	mov ReflowTime_Secs,a
+	add a,#0x01
+	da a
+	mov ReflowTime_Mins,a
+	sjmp Timer2_ISR_done
+
+ContinueISR:	
+	clr a
+	mov Count1ms+0, a
+	mov Count1ms+1, a
+
+	; Increment the seconds counter
+	mov a, Secs_BCD
+	add a,#0x01
+	da a
+	mov Secs_BCD, a
+	cjne a,#0x60,Timer2_ISR_done
+	mov a,#0x00
+	da a
+	mov Secs_BCD, a
+	add a,#0x01
+	da a
+	mov Mins_BCD, a
+	add a, #0x01
+	da a
+	mov Mins_BCD, a
+
+Timer2_ISR_done:
+	pop psw
+	pop acc
+	reti
+  
+;-------------------------------------------;
+;                Main Code                  ;
+;-------------------------------------------;
 MainProgram:
     mov SP, #7FH ; Set the stack pointer to the begining of idata
     mov PMOD, #0 ; Configure all ports in bidirectional mode
@@ -218,13 +386,26 @@ MainProgram:
     lcall InitSerialPort
     lcall INIT_SPI
     lcall LCD_4BIT
+    lcall Timer2_Init
+    lcall Timer0_Init
     
     ;Set Flag Initial Values
-	
+    clr Abort_Flag
+    clr SoakState_Flag
+    clr RampState_Flag
+    clr ReflowState_Flag
+    clr CooldownState_Flag
+    setb PreheatState_Flag ;Set Preheat flag to 1 at power on (it won't start preheating until it gets to that loop via Start button)
+    
+    clr Transition_Flag
+    clr mf
+    clr CoolEnoughToOpen_Flag
+	clr CoolEnoughToTouch_Flag
 	clr soak_menu_flag
 	clr reflow_menu_flag
-	
-	mov BCD_soak_temp, 		#0x40
+    
+    ;Set Presets
+    mov BCD_soak_temp, 		#0x40
 	mov BCD_soak_temp+1, 	#0x01
 	mov BCD_reflow_temp, 	#0x19
 	mov BCD_reflow_temp+1,	#0x02
@@ -234,12 +415,12 @@ MainProgram:
 	mov BCD_reflow_time, 	#0x30
 	mov BCD_reflow_time+1,	#0x00
 	
-    clr Abort_Flag
-    clr SoakState_Flag
-    clr RampState_Flag
-    clr ReflowState_Flag
-    clr CooldownState_Flag
-    setb PreheatState_Flag ;Set Preheat flag to 1 at power on (it won't start preheating until it gets to that loop via Start button)
+	mov Mins_BCD, #0x00
+	mov Secs_BCD, #0x00 
+	
+	;Zero the runtime of the reflow state
+	mov ReflowTime_Secs, #0x00
+	mov	ReflowTime_Mins, #0x00 
        
 MenuLoop:
     ;Display Initial Screen (Also clear it because it'll have other screens going to it)
@@ -291,7 +472,7 @@ StateMenu:
 	Set_Cursor(1,1)
 	Send_Constant_String(#soak_message)
 	Set_Cursor(2,1)
-	Send_Constant_String(#reflow_message)
+	Send_Constant_String(#reflow_message)	
 	
 StateMenu_Loop: ;Internal loop so the screen isn't constantly cleared
 	push_button(#4)
@@ -303,6 +484,7 @@ StateMenu_Loop_P2:
 	jz StateMenu_loop_P5
 	clr reflow_menu_flag
 	setb soak_menu_flag
+	
 StateMenu_loop_P5:
 	push_button(#2)
 	jz StateMenu_Loop_P6
@@ -350,14 +532,15 @@ TimeMenu_Loop: ;Internal loop so the screen isn't constantly cleared
 	push_button(#4)
 	jz TimeMenu_Loop_P2
 	ljmp BackToMain
-TimeMenu_Loop_P2:
 	
+TimeMenu_Loop_P2:
 	jnb soak_menu_flag, TimeMenu_Loop_P3
 	Set_Cursor(1,1)
 	Send_Constant_String(#time_soak)
 	Set_Cursor(2,1)
 	Send_Constant_String(#setTime_guide)
 	ljmp set_time_soak
+	
 TimeMenu_Loop_P3:
 	jnb reflow_menu_flag, TimeMenu_Loop_P4
 	Set_Cursor(1,1)
@@ -370,8 +553,6 @@ TimeMenu_Loop_P4:
 	Set_Cursor(2,1)
 	Send_Constant_String(#no_state)
 	ljmp TimeMenu_Loop
-	
-	
 	
 set_time_soak:
 
@@ -397,9 +578,7 @@ sTime_s_write_BCD:
 	Set_Cursor(2,4)
 	Display_BCD(BCD_soak_time)
 	ljmp sTime_s_main
-	
-
-	
+		
 set_time_reflow:
 
 sTime_r_main:
@@ -446,14 +625,15 @@ TempMenu_Loop: ;Internal loop so the screen isn't constantly cleared
 	push_button(#4)
 	jz TempMenu_Loop_P2
 	ljmp BackToMain
-TempMenu_Loop_P2:
 	
+TempMenu_Loop_P2:
 	jnb soak_menu_flag, TempMenu_Loop_P3
 	Set_Cursor(1,1)
 	Send_Constant_String(#temp_soak)
 	Set_Cursor(2,1)
 	Send_Constant_String(#setTemp_guide)
 	ljmp set_temp_soak
+	
 TempMenu_Loop_P3:
 	jnb reflow_menu_flag, TempMenu_Loop_P4
 	Set_Cursor(1,1)
@@ -465,9 +645,7 @@ TempMenu_Loop_P3:
 TempMenu_Loop_P4:
 	Set_Cursor(2,1)
 	Send_Constant_String(#no_state)
-	ljmp TempMenu_Loop
-	
-	
+	ljmp TempMenu_Loop	
 	
 set_temp_soak:
 
@@ -501,8 +679,6 @@ sts_write_BCD:
 	Set_Cursor(2,3)
 	Display_BCD(BCD_soak_temp)
 	ljmp sts_main
-
-	
 	
 set_temp_reflow:	
 
@@ -530,7 +706,6 @@ str_write_BCD:
 	ljmp str_main
 ;------------------------------------------------------------------------------;
 
-;------------------------------------------------------------------------------;
 BackToMain:
 	WriteCommand(#0x28)
 	WriteCommand(#0x0c)
@@ -545,74 +720,257 @@ ProgramRun:
 	WriteCommand(#0x01) ;Clears the LCD
 	Wait_Milli_Seconds(#10) ;Wait for the clear to finish
 	
-ProgramRun_Loop:
+	setb EA   ; Enable Global interrupts
+	
+	;Display the program headings (Runtime, State, and Temp at current time)	
 	;Display Current runtime on top of LCD, as well as state
-	;Display BCD converted Current_Temp on bottom of LCD
+	Set_Cursor(1,1)
+	Send_Constant_String(#Runtime_Message)
+	Set_Cursor(1,10)
+	Send_Constant_String(#Current_Temp_Message)
+	Set_Cursor(2,1)
+	Send_Constant_String(#State_Message_Runtime)		
+			
+ProgramRun_Loop:
+	
+	Set_Cursor(1,1)
+	Display_BCD(Mins_BCD)
+	Set_Cursor(1,4)
+	Display_BCD(Secs_BCD)
+	
+	;CurrTemp
+	Read_ADC_Channel(0)
+	lcall ConvertNum; converts voltage received to temperature
+	Set_Cursor(1,10)
+	Display_BCD(Temperature+2);upper bits of temp bcd
+	Set_Cursor(1,12)
+	Display_BCD(Temperature+1);lower bits of temp bcd
+	
 	;Monitor for abort button (B6) at all times and if pressed, set Abort_Flag
 	;Also run MonitorTemp macro, which sets the abort flag under certain conditions
-;	MonitorTemp(bcd)
-	jb Abort_Flag,Abort
+	;MonitorTemp(Temperature) ;Will work once temperature is working
+	;If Start/Done button is pressed, immediately abort, as we don't need to check other abort conditions
+	push_button(#4)
+	jz CheckAbortFlag
+	sjmp Abortx
 	
-	;Serially send the current temp so that python can do a stripchart
+CheckAbortFlag:
+	jb Abort_Flag, Abortx
+	sjmp DontAbort
 	
+Abortx:
+	ljmp Abort ;Using this to jump to abort from here since there is lots of code in between
+	
+DontAbort:
+	clr seconds_flag ;keep clearing the seconds flag so it doesn't accidentally incrmeent seconds more than once
+	;Serially send the current temp so that python can do a stripchart	
+	;Wait_Milli_Seconds(#250)
+	;Wait_Milli_Seconds(#250);wait half a second
+	;Send_BCD(Temperature+2)
+	;Send_BCD(Temperature+1)
+	;mov a, #'.'
+	;lcall putchar
+	;Send_BCD(Temperature+0)
+	;mov a, #' '
+	;lcall putchar
+	;mov a, #'C'
+	;lcall putchar
+    ;mov a,#'\r'
+    ;lcall putchar
+    ;mov a,#'\n'
+    ;lcall putchar	
 	;Here we can check CurrentState flags, IE ReflowState_Flag
 	;Depending on the current set state flag, jump to state loops until that state logic is done (ie when reflow state ends, ReflowState_Flag gets set to zero and CooldownState_Flag gets set to 1)
 	;State loops do their own checks quickly, and come back to the program run loop, which does the constant temp monitoring/display/spi logic
-	jb PreheatState_Flag,Preheat
-	jb SoakState_Flag,Soak
-	jb RampState_Flag,Ramp
-	jb ReflowState_Flag,Reflow
-	jb CooldownState_Flag,Cooldown
-	
+	jb PreheatState_Flag, DisplayPreheat
+	jb SoakState_Flag, DisplaySoak
+	jb RampState_Flag, DisplayRamp
+	jb ReflowState_Flag, DisplayReflow
+	jb CooldownState_Flag, DisplayCooldown_jump
+	jb Cooldowntouch_Flag, Cooldowntouch_jump
 	ljmp ProgramRun_Loop
 	
+DisplayCooldown_jump:
+	ljmp DisplayCooldown
+Cooldowntouch_jump:
+	ljmp DisplayCooldowntouch
+
+;Display Done here to bypass the length of jb
+;Display current state	
+DisplayPreheat:
+	Set_Cursor(2,8)
+	Send_Constant_String(#Preheat_Display)
+	ljmp Preheat ;No need to check flags twice, so after updating display, jump right into the specified state
+
+;See DisplayPreheat above as this is basically the same thing for each state	
+DisplaySoak:
+	Set_Cursor(2,8)
+	Send_Constant_String(#Soak_Display)
+	ljmp Soak
+	
+DisplayRamp:
+	Set_Cursor(2,8)
+	Send_Constant_String(#Ramp_Display)
+	ljmp Ramp
+	
+DisplayReflow:
+	Set_Cursor(2,8)
+	Send_Constant_String(#Reflow_Display)
+	ljmp Reflow
+	
+DisplayCooldown:
+	Set_Cursor(2,8)
+	Send_Constant_String(#Cooldown_Display)
+	ljmp Cooldown
+	
+DisplayCooldowntouch:
+	Set_Cursor(2,8)
+	Send_Constant_String(#Done_Display)
+	ljmp Cooldowntouch
+
+;Run heating logic with SSR until SoakTemp degrees C at ~1-3 C/sec
+;If CurrTemp >= SoakTemp, jump to DonePreheating	
 Preheat:
-	;Run heating logic with SSR until SoakTemp degrees C at ~1-3 C/sec
-	;If CurrTemp >= SoakTemp, jump to DonePreheating
+	mov power, #100
+	mov a, BCD_soak_temp ; a = desired temperature
+	clr c
+	subb a, Temperature+1 ; temp = current temperature
+	jc preheat_next
+	ljmp ProgramRun_Loop
+preheat_next:
+	mov a, BCD_soak_temp+1
+	clr c
+	subb a, Temperature+2
+	jz DonePreheating		
 	ljmp ProgramRun_Loop
 
 DonePreheating:
 	clr PreheatState_Flag
 	setb SoakState_Flag
+	setb Transition_Flag
  	ljmp ProgramRun_Loop
+;Run logic to Maintain temperature at SoakTemp degrees C for SoakTime Seconds
+;After soaktime seconds, jump to DoneSoaking
 Soak:
-	;Run logic to Maintain temperature at SoakTemp degrees C for SoakTime Seconds
-	;After soaktime seconds, jump to DoneSoaking
+	mov power, #20
+	mov a, BCD_soak_time+1
+	clr c
+	subb a, Mins_BCD
+	jc DoneSoaking
+	jz CheckSecs_Soaking
+	ljmp ProgramRun_Loop
+	
+CheckSecs_Soaking:
+	mov a, BCD_soak_time
+	clr c
+	subb a, Secs_BCD
+	jc DoneSoaking	
 	ljmp ProgramRun_Loop
 	
 DoneSoaking:
 	clr SoakState_Flag
 	setb RampState_Flag
+	setb Transition_Flag
 	ljmp ProgramRun_Loop
 
+;Run logic to heat until ReflowTemp degrees C is reached at ~1-3 C /sec
+;After CurrTemp >= ReflowTemp, jump to DoneRamping
 Ramp:
-	;Run logic to heat until ReflowTemp degrees C is reached at ~1-3 C /sec
-	;After CurrTemp >= ReflowTemp, jump to DoneRamping
+	mov power, #100
+	mov a, BCD_reflow_temp
+	clr c
+	subb a, Temperature+1
+	jc ramp_next
+	ljmp ProgramRun_Loop
+ramp_next:
+	mov a, BCD_reflow_temp+1
+	clr c
+	subb a, Temperature+2
+	jz DoneRamping
 	ljmp ProgramRun_Loop
 	
 DoneRamping:
 	clr RampState_Flag
 	setb ReflowState_Flag
+	setb Transition_Flag
 	ljmp ProgramRun_Loop
 
+;Run logic to heat until max temp at some deg/s
+;Then logic to run until cooled <= ReflowTemp
+;When it cools below ReflowTemp, jump to DoneReflowing
 Reflow:
-	;Run logic to heat until max temp at some deg/s
-	;Then logic to run until cooled <= ReflowTemp
-	;When it cools below ReflowTemp, jump to DoneReflowing
+	mov power, #20
+	mov a, BCD_reflow_time+1
+	clr c
+	subb a, ReflowTime_Mins
+	jc DoneReflowing
+	jz CheckSecs_Reflowing
+	ljmp ProgramRun_Loop
+	
+CheckSecs_Reflowing:
+	mov a, BCD_reflow_time
+	clr c
+	subb a, ReflowTime_Secs
+	jc DoneReflowing	
 	ljmp ProgramRun_Loop
 	
 DoneReflowing:
 	clr ReflowState_Flag
 	setb CooldownState_Flag
+	setb Transition_Flag
 	ljmp ProgramRun_Loop
 
 Cooldown:
 	;Run logic to turn oven off and set a 'CoolEnoughToOpen' flag (which will trigger certain beeps) once it is cool enough to open the oven door
 	;And once it is cool enough to touch, set the 'CoolEnoughToTouch' flag (which triggers other beeps)
+	mov power, #0
+	mov a, #60
+	clr c
+	subb a, Temperature+1
+	jc cooldown_next
+	ljmp ProgramRun_Loop
+cooldown_next:
+	mov a, Temperature+2
+	jz DoneCoolDown
 	ljmp ProgramRun_Loop
 	
-
+DoneCoolDown:
+	clr CooldownState_Flag
+	setb Transition_Flag
+	setb CoolEnoughToOpen_Flag
+	setb Cooldowntouch_Flag
+	ljmp ProgramRun_Loop
+	
+Cooldowntouch:
+	mov a, #30
+	clr c
+	subb a, Temperature+1
+	jc cooldowntouch_next
+	ljmp ProgramRun_Loop
+cooldowntouch_next:
+	mov a, Temperature+2
+	jz DoneCooldowntouch
+	ljmp ProgramRun_Loop
+	
+DoneCooldowntouch:
+	clr Cooldowntouch_Flag
+	setb Transition_Flag
+	setb CoolEnoughToTouch_Flag
+	ljmp ENDLOOP
+	
 Abort:
 	;Program will jump here from ProgramRun: if it does, send command to turn off oven, stopping the program
+	;Clear screen first before displaying abort message
+	WriteCommand(#0x28)
+	WriteCommand(#0x0c)
+	WriteCommand(#0x01) ;Clears the LCD
+	Wait_Milli_Seconds(#10) ;Wait for the clear to finish
+	
+	;Aborted
+	Set_Cursor(2,1)
+	Send_Constant_String(#Abort_String)
+	
+ENDLOOP:
+	sjmp ENDLOOP
 
 END
