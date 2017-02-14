@@ -73,17 +73,7 @@ endmac
 ;	subb a,#MAX_TEMP ;235
 ;	jnc Abort_mac
 	 
-;This is a state where the temperature is below MAX_TEMP, and where we can check other safety conditions
-CoolTemp:
-    mov a, Mins_BCD ;If the current runtime of the reflow is 60s , perform 50-CurrentTemp
-    clr c
-    subb a,#0
-	jnc TempMonitorReturn ;If runtime isn't >1min, return, otherwise, check if temp >50c
-	mov a,Temperature 
-	clr c
-	subb a,#50 
-	jnc Abort_mac
-	ret			 
+			 
 ;If any unsafe conditions above are met, the program will jump here, and set this flag which will shut down the program in a timer0 interrupt
 Abort_mac:
 	setb Abort_Flag
@@ -246,11 +236,6 @@ Preheat_Abort mac
 	pop AR2
 endmac
 	
-?sixty_second_mark:
-	clr c
-	mov a, R2
-	subb a, #01
-	ret
 ?Preheat_Abort_1:
 	clr c
 	mov a, R2
