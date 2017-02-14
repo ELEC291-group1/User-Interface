@@ -57,22 +57,32 @@ endmac
 
 ;2.
 ;Purpose: Monitors temperature and stops Oven if too hot. Will be updated as a more multipurpose macro to monitor multiple safety hazards
-;Usage: MonitorTemp(x), where x is the BCD temperature in celsius - use in a loop to constantly check the temp passes all the current tests
+;Usage: MonitorTemp(x+2,x+1), where x is the BCD temperature in celsius - use in a loop to constantly check the temp passes all the current tests
 ;Return: No return
 MonitorTemp mac
 	push AR2
+	push AR3
 	mov R2,%0
+	mov R3,%1
 	lcall ?MonitorTemp
+	pop AR3
 	pop AR2
 endmac
 
 ;2.
-;?MonitorTemp:
-;	mov a, R2
-;	clr c
-;	subb a,#MAX_TEMP ;235
-;	jnc Abort_mac
-	 
+?MonitorTemp:
+	mov a, R2
+	clr c
+	subb a,#MAX_TEMP_UPPER 
+	jnc CheckLower
+	sjmp TempMonitorReturn 
+	
+CheckLower:
+	mov a, R3
+	clr c
+	subb a,#MAX_TEMP_LOWER
+	jnc Abort_mac
+	sjmp TempMonitorReturn
 			 
 ;If any unsafe conditions above are met, the program will jump here, and set this flag which will shut down the program in a timer0 interrupt
 Abort_mac:
