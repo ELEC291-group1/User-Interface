@@ -67,11 +67,11 @@ MonitorTemp mac
 endmac
 
 ;2.
-?MonitorTemp:
-	mov a, R2
-	clr c
-	subb a,#MAX_TEMP ;235
-	jnc Abort_mac
+;?MonitorTemp:
+;	mov a, R2
+;	clr c
+;	subb a,#MAX_TEMP ;235
+;	jnc Abort_mac
 	 
 ;This is a state where the temperature is below MAX_TEMP, and where we can check other safety conditions
 CoolTemp:
