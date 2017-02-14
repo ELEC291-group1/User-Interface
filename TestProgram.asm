@@ -907,7 +907,6 @@ Soak_Power_Off:
 	clr POWER
 Soak_Continue:
 	mov a, BCD_soak_time+1; upper
-	subb a, SoakTime_Mins
 	cjne a, SoakTime_Mins, Soak_Continue_2
 	clr c
 	mov a, BCD_soak_time ;lower
