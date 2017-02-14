@@ -1,5 +1,5 @@
 ; Christian Schroeder
-; Hannah Sawiuk, 51196160
+; Hannah Sawiuk
 ; Jake Osborne
 ; ELEC 291, Project 1, Reflow Oven Controller
 ; Main file
@@ -328,6 +328,7 @@ Inc_Done:
 
 ContISR2:
 	; Check if a second has passed
+	clr HalfSecond_Flag
 	mov a, Count1ms+0
 	cjne a, #low(1000), Timer2_ISR_done_redirect ; Warning: this instruction changes the carry flag!
 	mov a, Count1ms+1
@@ -777,12 +778,13 @@ ProgramRun_Loop:
 	Set_Cursor(1,12)
 	Display_BCD(Temperature+1);lower bits of temp bcd
 	clr HalfSecond_Flag
+	ljmp DontPrintTemp2:
 DontPrintTemp:	
 	Set_Cursor(1,10)
 	Display_BCD(Temperature+2);upper bits of temp bcd
 	Set_Cursor(1,12)
 	Display_BCD(Temperature+1);lower bits of temp bcd
-	
+DontPrintTemp2:
 	;Monitor for abort button (B6) at all times and if pressed, set Abort_Flag
 	;Also run MonitorTemp macro, which sets the abort flag under certain conditions
 	;MonitorTemp(Temperature) ;Will work once temperature is working
