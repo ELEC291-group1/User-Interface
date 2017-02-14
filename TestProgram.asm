@@ -328,7 +328,6 @@ Inc_Done:
 
 ContISR2:
 	; Check if a second has passed
-	clr HalfSecond_Flag
 	mov a, Count1ms+0
 	cjne a, #low(1000), Timer2_ISR_done_redirect ; Warning: this instruction changes the carry flag!
 	mov a, Count1ms+1
