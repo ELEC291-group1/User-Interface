@@ -250,8 +250,8 @@ Preheat_Abort mac
 endmac
 	
 ?Preheat_Abort_1:
-	mov a, #0x00
-	cjne a, R3, Preheat_Abort_END
+	mov a, R3
+	cjne a, #0x00, Preheat_Abort_END
 	clr c
 	mov a, R2
 	subb a, #0x50
