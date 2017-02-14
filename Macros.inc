@@ -135,38 +135,38 @@ endmac
 ;Purpose: Beeps with a certain frequency and length
 ;Usage: Beep(repititions,length) will beep (repetitions) times for (length) milliseconds
 ;Return: Beeeeep
-Beep mac
-	push AR2
-	mov R2, %0 ;repetitions
-	push AR3
-	mov R3, %1 ; length
-	lcall ?Beep
-	pop AR3
-	pop AR2
-endmac
-
+;Beep mac
+;	push AR2
+;	mov R2, %0 ;repetitions
+;	push AR3
+;	mov R3, %1 ; length
+;	lcall ?Beep
+;	pop AR3
+;	pop AR2
+;endmac
+;
 ;5.
-?Beep:
-	mov a, R2  ;number of repetitions
-L1_beep:	
-	jnz L2_beep  ; while a > 0, repeat beep
-	sjmp done_beep 
-L2_beep:
-	cpl SOUND_OUT
-	cjne R3, #0, long_beep
-	Wait_Milli_Seconds(#250)
-beep_loop:
-	dec a
-	sjmp L1_beep
-done_beep:
-	clr SOUND_OUT
-	ret
-long_beep:
-	Wait_Milli_Seconds(#250)
-	Wait_Milli_Seconds(#250)
-	Wait_Milli_Seconds(#250)
-	Wait_Milli_Seconds(#250)
-	sjmp beep_loop
+;?Beep:
+;	mov a, R2  ;number of repetitions
+;L1_beep:	
+;	jnz L2_beep  ; while a > 0, repeat beep
+;	sjmp done_beep 
+;L2_beep:
+;	cpl SOUND_OUT
+;	cjne R3, #0, long_beep
+;	Wait_Milli_Seconds(#250)
+;beep_loop:
+;	dec a
+;	sjmp L1_beep
+;done_beep:
+;	clr SOUND_OUT
+;	ret
+;long_beep:
+;	Wait_Milli_Seconds(#250)
+;	Wait_Milli_Seconds(#250)
+;	Wait_Milli_Seconds(#250)
+;	Wait_Milli_Seconds(#250)
+;	sjmp beep_loop
 	
 ;6.
 ;Purpose: To read a pushbutton and determine if it is pressed or not
