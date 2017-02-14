@@ -238,9 +238,28 @@ not_pressed:
 	mov a, #0
 	ret
 	
+;7.
+Preheat_Abort mac
+	push AR2
+	push AR3
+	push AR4
+	mov R2, %0 ;minute marker
+	mov R3, %1 ;temp lower
+	lcall ?sixty_second_mark
+	lcall ?Preheat_Abort_1
+endmac
 	
-;Button_1 example
-;	push_button(1)
-;	jz not_pressed_branch
-;	jnz pressed_branch
-		
+?sixty_second_mark:
+	clr c
+	mov a, R2
+	subb a, #01
+	ret
+?Preheat_Abort_1:
+	jc Preheat_Abort_END
+	clr c
+	mov a, R3
+	subb a, #50
+	jnc Preheat_Abort_END
+	setb Abort_Flag
+Preheat_Abort_END:
+	ret
