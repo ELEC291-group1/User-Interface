@@ -785,7 +785,9 @@ ProgramRun_Loop:
 DontPrintTemp:	
 	;Monitor for abort button (B6) at all times and if pressed, set Abort_Flag
 	;Also run MonitorTemp macro, which sets the abort flag under certain conditions
-	;MonitorTemp(Temperature) ;Will work once temperature is working
+	
+	MonitorTemp(Temperature+2, Temperature+1) ;Working?
+	
 	;If Start/Done button is pressed, immediately abort, as we don't need to check other abort conditions
 	;MonitorTemp(Temperature+2,Temperature+1)
 	push_button(#4)
