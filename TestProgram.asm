@@ -273,42 +273,8 @@ Timer0_ISR:
 	mov TH0, #high(TIMER0_RELOAD)
 	mov TL0, #low(TIMER0_RELOAD)
 	setb TR0
-	jb Transition_Flag, Beep_1
-	jb CoolEnoughToTouch_Flag, Beep_6
-	jb CoolEnoughToOpen_Flag, Beep_L
-	reti
-Beep_1:
-	mov a, #0x01
-	clr Length_Flag
-	sjmp loop1
-Beep_6:
-	mov a, #0x06
-	clr Length_Flag
-	sjmp loop1
-Beep_L:
-	setb Length_Flag
-	mov a, #0x01
-	sjmp loop1
-Beep_Loop:
-	jz Beep_Done
 	cpl SOUND_OUT
-	jb Length_Flag, Beep_Long
-	mov TH0, #high(TIMER0_RELOAD)
-	mov TL0, #low(TIMER0_RELOAD)
-	dec a
-	sjmp Beep_Loop
-Beep_Done:
-	clr SOUND_OUT
-	clr Length_Flag
 	reti
-Beep_Long:
-	mov TH0, #high(TIMER0_RELOAD)
-	mov TL0, #low(TIMER0_RELOAD)
-	mov TH0, #high(TIMER0_RELOAD)
-	mov TL0, #low(TIMER0_RELOAD)
-	dec a
-	sjmp Beep_Loop
-	
 ;-------------------------------------------;
 ;         Timer 2 Initializiation           ;
 ;-------------------------------------------; 
@@ -1058,4 +1024,3 @@ ENDLOOP:
 	sjmp ENDLOOP
 
 END
-
