@@ -388,7 +388,7 @@ ContinueISR:
 	da a
 	mov Secs_BCD, a
 	cjne a, Mins_BCD, ContinueISR_1
-	Preheat_Abort(Temperature+1)
+	Preheat_Abort(Temperature+1, Temperature+2)
 ContinueISR_1:	
 	clr a
 	mov a, Mins_BCD
