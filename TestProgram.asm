@@ -746,6 +746,8 @@ ProgramRun_Loop:
 	Set_Cursor(1,12)
 	Display_BCD(Temperature+1);lower bits of temp bcd
 	
+	Preheat_Abort(Mins_BCD,Temperature+1)
+	
 	;Monitor for abort button (B6) at all times and if pressed, set Abort_Flag
 	;Also run MonitorTemp macro, which sets the abort flag under certain conditions
 	;MonitorTemp(Temperature) ;Will work once temperature is working
