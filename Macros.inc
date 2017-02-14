@@ -1,111 +1,186 @@
-cseg
-;//////////
-;//Macros//
-;//////////
+CSEG
+; Christian Schroeder
+; Hannah Sawiuk
+; Jake Osborne
+; ELEC 291, Project 1, Reflow Oven Controller
+; macros.inc
 
-$NOLIST
-$include(LCD_4bit.inc)
-$LIST
+
+;-------------------------------------------;
+;                Functions                  ;
+;-------------------------------------------;
+; Send a character using the serial port
+putchar:
+    jnb TI, putchar
+    clr TI
+    mov SBUF, a
+    ret
+
+;-------------------------------------------;
+;                 Macros                    ;
+;-------------------------------------------;
 
 ;1.
 ;Purpose: Reads a voltage at x channel of ADC Chip
 ;Usage: Read_ADC_Channel(x) 
 ;Return: Returns 10 bit voltage in Result(low) and Result+1(high 2 bits)
 
-;Read_ADC_Channel mac
-;	mov b, #%0
-;	lcall ?Read_ADC_Channel
-;endmac
-
-;/////////////////
-;//Macro Details//
-;/////////////////
+Read_ADC_Channel mac
+	mov b, #%0
+	lcall ?Read_ADC_Channel
+endmac
 
 
 ;1.    
-;?Read_ADC_Channel:
-;	clr CE_ADC
-;	mov R0, #00000001B ; Start bit:1
-;	lcall DO_SPI_G
-;	mov a, b
-;	swap a
-;	anl a, #0F0H
-;	setb acc.7 ; Single mode (bit 7).
-;	mov R0, a
-;	lcall DO_SPI_G
-;	mov a, R1 ; R1 contains bits 8 and 9
-;	anl a, #00000011B ; We need only the two least significant bits
-;	mov R7, a ; Save result high.
-;	mov R0, #55H ; It doesn't matter what we transmit...
-;	lcall DO_SPI_G
-;	mov a, R1
-;	mov R6, a ; R1 contains bits 0 to 7. Save result low.
-;	setb CE_ADC
-;	mov Result+1,R7
-;	mov Result,R6
-;	ret
+?Read_ADC_Channel:
+	clr CE_ADC
+	mov R0, #00000001B ; Start bit:1
+	lcall DO_SPI_G
+	mov a, b
+	swap a
+	anl a, #0F0H
+	setb acc.7 ; Single mode (bit 7).
+	mov R0, a
+	lcall DO_SPI_G
+	mov a, R1 ; R1 contains bits 8 and 9
+	anl a, #00000011B ; We need only the two least significant bits
+	mov R7, a ; Save result high.
+	mov R0, #55H ; It doesn't matter what we transmit...
+	lcall DO_SPI_G
+	mov a, R1
+	mov R6, a ; R1 contains bits 0 to 7. Save result low.
+	setb CE_ADC
+	mov Result+1,R7
+	mov Result,R6
+	ret
 
 
-;4.
+;2.
 ;Purpose: Monitors temperature and stops Oven if too hot. Will be updated as a more multipurpose macro to monitor multiple safety hazards
 ;Usage: MonitorTemp(x), where x is the BCD temperature in celsius - use in a loop to constantly check the temp passes all the current tests
 ;Return: No return
 MonitorTemp mac
 	push AR2
-	push AR3
 	mov R2,%0
-	mov R3, Curr_Runtime
 	lcall ?MonitorTemp
 	pop AR2
-	pop AR3
 endmac
 
-
-;4.
+;2.
 ?MonitorTemp:
-	push AR0
 	mov a, R2
-	cjne a,#235,Not235 ;Check a bunch of temperatures around 235 to make sure it doesn't jump over 235 and keep going
-	sjmp Abort
-Not235:
-	cjne a,#236, Not236
-	sjmp Abort
-Not236:
-	cjne a, #237, Not237
-	sjmp Abort
-Not237:
-	cjne a, #238, CoolTemp
-	sjmp Abort
-;This is a state where the temperature is below 235C, and where we can check other safety conditions
+	clr c
+	subb a,#MAX_TEMP ;235
+	jnc Abort_mac
+	 
+;This is a state where the temperature is below MAX_TEMP, and where we can check other safety conditions
 CoolTemp:
-	cjne R3, #60,TempMonitorReturn ;If the current runtime of the reflow is 60s (in later tests, we might need a buffer here like the Not23X labels), perform 50-CurrentTemp
-	clr CY ;Clear both carry flags just in case of bugs
-	clr AC
-	mov R0, a
-	mov a, #50
-	subb a, R0
-	jnb AC,Abort ;AC is from the bit addressable program status word (PSW) register. Basically the bit is set if there is a carry (in subb, in this case)
-	pop AR0
-	ret			 ;So if AC is not set, that should mean that the temp is <50 degrees C after the 1 minute mark and we should abort the program.	
+    mov a, Mins_BCD ;If the current runtime of the reflow is 60s , perform 50-CurrentTemp
+    clr c
+    subb a,#0
+	jnc TempMonitorReturn ;If runtime isn't >1min, return, otherwise, check if temp >50c
+	mov a,Temperature 
+	clr c
+	subb a,#50 
+	jnc Abort_mac
+	ret			 
 ;If any unsafe conditions above are met, the program will jump here, and set this flag which will shut down the program in a timer0 interrupt
-Abort:
-	setb shut_down_flag
-	pop AR0
+Abort_mac:
+	setb Abort_Flag
 	ret
 TempMonitorReturn:
-	clr shut_down_flag
 	ret
-;------------------;	
-; Push button macro;
-;------------------;
+
+    
+;3.
+;Purpose: Serially transmits a BCD value to Putty/Serial Port
+;Usage: Send_BCD(BCD_val) sends BCD_val serially
+;Return: No return
+Send_BCD mac
+    push ar0
+    mov r0, %0
+    lcall ?Send_BCD
+    pop ar0
+endmac
+;3.
+?Send_BCD:
+    push acc    ; Write most significant digit
+    mov a, r0
+    swap a
+    anl a, #0fh
+    orl a, #30h
+    lcall putchar   ; write least significant digit
+    mov a, r0
+    anl a, #0fh
+    orl a, #30h
+    lcall putchar
+    pop acc
+	ret
+;4.
+;Purpose: Converts voltage to temperature (use as a periodic update function)
+;Usage: Call this function Voltage2Temp() and it will take the 10 bit adc value stored in result and result+1 and use it to update the BCD_temp
+;Return: No return, but calling this updates the BCD temp based on the current voltage in the recently read ADC channel
+Voltage2Temp mac
+	lcall ?Voltage2Temp
+endmac
+
+;4.
+?Voltage2Temp:
+    ;Use math32 functions and voltage -> degrees formula for our thermocouple to convert an input voltage to a temperature BCD   
+    ret
+    
+        
+
+;5.
+;Purpose: Beeps with a certain frequency and length
+;Usage: Beep(repititions,length) will beep (repetitions) times for (length) milliseconds
+;Return: Beeeeep
+Beep mac
+	push AR2
+	mov R2, %0 ;repetitions
+	push AR3
+	mov R3, %1 ; length
+	lcall ?Beep
+	pop AR3
+	pop AR2
+endmac
+
+;5.
+?Beep:
+	mov a, R2  ;number of repetitions
+L1_beep:	
+	jnz L2_beep  ; while a > 0, repeat beep
+	sjmp done_beep 
+L2_beep:
+	cpl SOUND_OUT
+	cjne R3, #0, long_beep
+	Wait_Milli_Seconds(#250)
+beep_loop:
+	dec a
+	sjmp L1_beep
+done_beep:
+	clr SOUND_OUT
+	ret
+long_beep:
+	Wait_Milli_Seconds(#250)
+	Wait_Milli_Seconds(#250)
+	Wait_Milli_Seconds(#250)
+	Wait_Milli_Seconds(#250)
+	sjmp beep_loop
 	
+;6.
+;Purpose: To read a pushbutton and determine if it is pressed or not
+;Usage: push_button(#1) checks if button 1 is pressed
+;Return: 1 in a if button is pressed, 0 in a if button is not pressed    
+;5 buttons
 push_button mac
 	push AR2
 	mov R2, %0 ;button number
 	lcall ?push_button
 	pop AR2
 endmac
-	
+
+;6.
 ?push_button:
 	cjne R2, #1,check2
 	sjmp Button1
@@ -113,44 +188,59 @@ check2:
 	cjne R2, #2, check3
 	sjmp Button2
 check3:
-	cjne R2, #3, check_done
+	cjne R2, #3, checkdone
 	sjmp Button3
-check_done:
-	cjne R2, #4, not_pressed
-	sjmp DONE
+checkdone:
+	cjne R2, #4, checkboot
+	sjmp Donebutton
+checkboot:
+	cjne R2, #5, done
+	sjmp Bootbutton	
+done:
+	clr a
+	ret
 Button1:
 	jb Button_1 , not_pressed 
 	Wait_Milli_Seconds(#50)	
 	jb Button_1, not_pressed 
 	jnb Button_1, $
-	sjmp pressed
-	
+	mov a, #1
+	ret
 Button2:
 	jb Button_2 , not_pressed  
 	Wait_Milli_Seconds(#50)	
 	jb Button_2, not_pressed 
 	jnb Button_2, $
-	sjmp pressed
-	
+	mov a, #1
+	ret
 Button3:
 	jb Button_3 , not_pressed  
 	Wait_Milli_Seconds(#50)
 	jb Button_3, not_pressed
 	jnb Button_3, $
-	sjmp pressed
-	
-DONE:
+	mov a, #1
+	ret
+Donebutton:
 	jb DONE_BUTTON , not_pressed  
 	Wait_Milli_Seconds(#50)	
-	jb DONE_BUTTON, not_pressed 
-	jnb DONE_BUTTON, $
-	sjmp pressed
-		
+	jb DONE_BUTTON , not_pressed 
+	jnb DONE_BUTTON , $
+	mov a, #1
+	ret
+Bootbutton:
+	jb BOOT_BUTTON, not_pressed  
+	Wait_Milli_Seconds(#50)	
+	jb BOOT_BUTTON, not_pressed 
+	jnb BOOT_BUTTON, $
+	mov a, #1
+	ret	
 not_pressed:
 	mov a, #0
 	ret
-pressed:
-	mov a, #1
-	ret
 	
-end
+	
+;Button_1 example
+;	push_button(1)
+;	jz not_pressed_branch
+;	jnz pressed_branch
+		
