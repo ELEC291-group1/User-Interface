@@ -231,12 +231,17 @@ not_pressed:
 ;7.
 Preheat_Abort mac
 	push AR2
+	push AR3
 	mov R2, %0 ;temp lower
+	mov R3, %1 ;temp upper
 	lcall ?Preheat_Abort_1
+	pop AR3
 	pop AR2
 endmac
 	
 ?Preheat_Abort_1:
+	mov a, #0x00
+	cjne a, R3, Preheat_Abort_END
 	clr c
 	mov a, R2
 	subb a, #0x50
