@@ -211,8 +211,7 @@ DO_SPI_G_LOOP:
 	rlc a
 	mov R1, a
 	clr MY_SCLK
-	djnz R2, DO_SPI_G_LOOP
-	ret
+	djnz R2, DO_SPI_G_LOOP	ret
 ;-------------------------------------------;
 ;        Serial Port Initialization         ;
 ;-------------------------------------------;
@@ -222,8 +221,7 @@ InitSerialPort:
     ; Since the reset button bounces, we need to wait a bit before
     ; sending messages, or risk displaying gibberish!
     mov R1, #222
-    mov R0, #166
-    djnz R0, $   ; 3 cycles->3*45.21123ns*166=22.51519us
+    mov R0, #166    djnz R0, $   ; 3 cycles->3*45.21123ns*166=22.51519us
     djnz R1, $-4 ; 22.51519us*222=4.998ms
     ; Now we can safely proceed with the configuration
 	clr	TR1
@@ -233,8 +231,7 @@ InitSerialPort:
 	mov	TH1,#T1LOAD
 	mov	TL1,#T1LOAD
 	setb TR1
-	mov	SCON,#0x52
-    ret
+	mov	SCON,#0x52    ret
 
 ;-------------------------------------------;
 ;     Converting Voltage to Temperature     ;
@@ -280,15 +277,15 @@ Timer0_ISR:
 Beep_1:
 	mov a, #0x01
 	clr Length_Flag
-	sjmp loop1
+	sjmp Beep_Loop
 Beep_6:
 	mov a, #0x06
 	clr Length_Flag
-	sjmp loop1
+	sjmp Beep_Loop
 Beep_L:
 	setb Length_Flag
 	mov a, #0x01
-	sjmp loop1
+	sjmp Beep_Loop
 Beep_Loop:
 	jz Beep_Done
 	cpl SOUND_OUT
