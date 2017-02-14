@@ -241,12 +241,8 @@ not_pressed:
 ;7.
 Preheat_Abort mac
 	push AR2
-	push AR3
-	mov R2, %0 ;minute marker
-	mov R3, %1 ;temp lower
-	lcall ?sixty_second_mark
+	mov R2, %0 ;temp lower
 	lcall ?Preheat_Abort_1
-	pop AR3
 	pop AR2
 endmac
 	
@@ -256,9 +252,8 @@ endmac
 	subb a, #01
 	ret
 ?Preheat_Abort_1:
-	jc Preheat_Abort_END
 	clr c
-	mov a, R3
+	mov a, R2
 	subb a, #50
 	jnc Preheat_Abort_END
 	setb Abort_Flag
