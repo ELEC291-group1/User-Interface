@@ -983,7 +983,7 @@ DoneReflowing:
 ;And once it is cool enough to touch, set the 'CoolEnoughToTouch' flag (which triggers other beeps)
 Cooldown:
 	clr POWER
-	mov a, #60
+	mov a, #0x60
 	clr c
 	subb a, Temperature+1
 	jc cooldown_next
@@ -1001,7 +1001,7 @@ DoneCoolDown:
 	ljmp ProgramRun_Loop
 	
 Cooldowntouch:
-	mov a, #30
+	mov a, #0x30
 	clr c
 	subb a, Temperature+1
 	jc cooldowntouch_next
