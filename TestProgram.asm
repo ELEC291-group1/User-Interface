@@ -909,7 +909,7 @@ Soak_Continue:
 	clr c
 	mov a, BCD_soak_time ;lower
 	subb a, SoakTime_Secs
-	jc DoneSoaking	
+	jc Soak_Done
 Soak_Continue_2:
 	ljmp ProgramRun_Loop		
 Soak_Done:
