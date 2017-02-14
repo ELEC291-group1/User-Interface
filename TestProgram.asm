@@ -328,6 +328,7 @@ Inc_Done:
 
 ContISR2:
 	; Check if a second has passed
+	clr HalfSecond_Flag
 	mov a, Count1ms+0
 	cjne a, #low(1000), Timer2_ISR_done_redirect ; Warning: this instruction changes the carry flag!
 	mov a, Count1ms+1
@@ -771,15 +772,13 @@ ProgramRun_Loop:
 	Read_ADC_Channel(0)
 	lcall ConvertNum; converts voltage received to temperature
 	
-	Preheat_Abort(Mins_BCD,Temperature+1)
-	
 	jnb HalfSecond_Flag, DontPrintTemp
 	Set_Cursor(1,10)
 	Display_BCD(Temperature+2);upper bits of temp bcd
 	Set_Cursor(1,12)
 	Display_BCD(Temperature+1);lower bits of temp bcd
 	clr HalfSecond_Flag
-DontPrintTemp:	
+DontPrintTemp:
 	;Monitor for abort button (B6) at all times and if pressed, set Abort_Flag
 	;Also run MonitorTemp macro, which sets the abort flag under certain conditions
 	;MonitorTemp(Temperature) ;Will work once temperature is working
@@ -889,15 +888,16 @@ DonePreheating:
 
 ;After CurrTemp >= SoakTemp, turn power off, else turn power on
 Soak:
-	mov a, BCD_soak_temp
-	clr c
-	subb a, Temperature+1
-	jc soak_next
-	sjmp continue_soak
-soak_next:
 	mov a, BCD_soak_temp+1
 	clr c
-	cjne a, Temperature+2, power_on
+	subb a, Temperature+2
+	jz soak_next
+	sjmp Continue_Soak
+soak_next:
+	mov a, BCD_soak_temp
+	clr c
+	subb a,Temperature+1
+	jnc power_on 
 	clr POWER
 	sjmp Continue_Soak	
 power_on:
