@@ -342,10 +342,10 @@ SecondPassed:
 	; 1 second has passed.  Set a flag so the main program knows
 	setb Seconds_flag ; Let the main program know a second had passed
 	setb HalfSecond_Flag
-	jnb SoakState_Flag, check_reflow
-	sjmp soak_timer
-check_reflow:
-	jnb ReflowState_Flag, ContinueISR
+	jb SoakState_Flag, soak_timer
+	jb ReflowState_Flag, reflow_timer
+	ljmp ContinueISR
+reflow_timer:
 	;increment reflow
 	mov a, ReflowTime_Secs
 	add a,#0x01
