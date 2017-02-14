@@ -42,15 +42,16 @@ L1: djnz R0, L1 ; 3 cycles->3*45.21123ns*166=22.51519us
 ;               Constants                   ;
 ;-------------------------------------------;
 
-MAX_TEMP equ 230 
-CLK  equ 22118400
-BAUD equ 115200
-T1LOAD equ (0x100-(CLK/(16*BAUD)))
-TIMER0_RATE   EQU 4096     ; 2048Hz squarewave (peak amplitude of CEM-1203 speaker)
-TIMER0_RELOAD EQU ((65536-(CLK/TIMER0_RATE)))
-TIMER2_RATE   EQU 1000     ; 1000Hz, for a timer tick of 1ms
-TIMER2_RELOAD EQU ((65536-(CLK/TIMER2_RATE)))   
-
+MAX_TEMP_UPPER EQU 02	
+MAX_TEMP_LOWER EQU 35 
+CLK            EQU 22118400
+BAUD		   EQU 115200
+T1LOAD 		   EQU (0x100-(CLK/(16*BAUD)))
+TIMER0_RATE    EQU 4096     ; 2048Hz squarewave (peak amplitude of CEM-1203 speaker)
+TIMER0_RELOAD  EQU ((65536-(CLK/TIMER0_RATE)))
+TIMER2_RATE    EQU 1000     ; 1000Hz, for a timer tick of 1ms
+TIMER2_RELOAD  EQU ((65536-(CLK/TIMER2_RATE)))   
+ 
 ;-------------------------------------------;
 ;                Variables                  ;
 ;-------------------------------------------;
@@ -63,15 +64,14 @@ Count1ms: 		 ds 2 ; used to count for one second
 Secs_BCD:		 ds 5 ;These two values are for the displayed runtime
 Mins_BCD:		 ds 5
 
-;Runtime:		 ds 5 ;This value is the internal runtime for comparisons (Not needed anymore with new comparison method)
-
 BCD_soak_temp: 	 ds 5 ;BCD value of Soak state temperature setting
 BCD_soak_time: 	 ds 5 ;BCD values of set soak time in seconds
 BCD_reflow_temp: ds 5
 BCD_reflow_time: ds 5
+SoakTime_Secs:   ds 5
+SoakTime_Mins:   ds 5
 ReflowTime_Secs: ds 5
 ReflowTime_Mins: ds 5
-power:			 ds 5
 
 ;arithmetic variables
 x: 			 	 ds 4
@@ -107,6 +107,7 @@ mf: 					dbit 1 ;Math Flag for use with math32.inc
 
 Abort_Flag: 			dbit 1
 Seconds_flag: 			dbit 1
+HalfSecond_Flag:		dbit 1
 
 ;-------------------------------------------;
 ;         Pins and Constant Strings         ;
@@ -128,8 +129,8 @@ LCD_D5  EQU P3.3
 LCD_D6  EQU P3.4
 LCD_D7  EQU P3.5
 
-SOUND_OUT EQU P0.0 ;Temp value, modify to whatever pin is attached to speaker
-
+SOUND_OUT EQU P3.7 ;Temp value, modify to whatever pin is attached to speaker
+POWER     EQU P2.4
 ;Pushbutton pins
 Button_1      EQU P0.1 ;1
 Button_2      EQU P0.3 ;2
@@ -318,6 +319,14 @@ Timer2_ISR:
 	inc Count1ms+1
 	
 Inc_Done:
+	;Check half second
+	mov a, Count1ms+0
+	cjne a, #low(500), ContISR2 ; Warning: this instruction changes the carry flag!
+	mov a, Count1ms+1
+	cjne a, #high(500), ContISR2
+	setb HalfSecond_Flag
+
+ContISR2:
 	; Check if a second has passed
 	mov a, Count1ms+0
 	cjne a, #low(1000), Timer2_ISR_done_redirect ; Warning: this instruction changes the carry flag!
@@ -332,7 +341,10 @@ ljmp Timer2_ISR_done
 SecondPassed:
 	; 1 second has passed.  Set a flag so the main program knows
 	setb Seconds_flag ; Let the main program know a second had passed
-	
+	setb HalfSecond_Flag
+	jnb SoakState_Flag, check_reflow
+	sjmp soak_timer
+check_reflow:
 	jnb ReflowState_Flag, ContinueISR
 	;increment reflow
 	mov a, ReflowTime_Secs
@@ -343,11 +355,24 @@ SecondPassed:
 	mov a,#0x00
 	da a
 	mov ReflowTime_Secs,a
+	mov ReflowTime_Mins,a
 	add a,#0x01
 	da a
-	mov ReflowTime_Mins,a
-	sjmp Timer2_ISR_done
-
+	mov a, ReflowTime_Mins
+	sjmp ContinueISR
+soak_timer:
+	mov a, SoakTime_Secs
+	add a,#0x01
+	da a
+	mov SoakTime_Secs,a
+	cjne a,#0x60, ContinueISR
+	mov a,#0x00
+	da a
+	mov SoakTime_Secs,a
+	mov SoakTime_Mins,a
+	add a,#0x01
+	da a
+	mov a, SoakTime_Mins
 ContinueISR:	
 	clr a
 	mov Count1ms+0, a
@@ -362,13 +387,10 @@ ContinueISR:
 	mov a,#0x00
 	da a
 	mov Secs_BCD, a
+	mov a, Mins_BCD
 	add a,#0x01
 	da a
-	mov Mins_BCD, a
-	add a, #0x01
-	da a
-	mov Mins_BCD, a
-
+	mov Mins_BCD,a
 Timer2_ISR_done:
 	pop psw
 	pop acc
@@ -421,6 +443,13 @@ MainProgram:
 	;Zero the runtime of the reflow state
 	mov ReflowTime_Secs, #0x00
 	mov	ReflowTime_Mins, #0x00 
+	mov SoakTime_Secs, #0x00
+	mov	SoakTime_Mins, #0x00
+	
+	;Give temp an initial value so it doesn't auto-abort because of an unknown
+	mov Temperature+0, #0x00
+	mov Temperature+1, #0x00
+	mov Temperature+2, #0x00
        
 MenuLoop:
     ;Display Initial Screen (Also clear it because it'll have other screens going to it)
@@ -741,17 +770,24 @@ ProgramRun_Loop:
 	;CurrTemp
 	Read_ADC_Channel(0)
 	lcall ConvertNum; converts voltage received to temperature
+	
+	jnb HalfSecond_Flag, DontPrintTemp
+	Set_Cursor(1,10)
+	Display_BCD(Temperature+2);upper bits of temp bcd
+	Set_Cursor(1,12)
+	Display_BCD(Temperature+1);lower bits of temp bcd
+	clr HalfSecond_Flag
+DontPrintTemp:	
 	Set_Cursor(1,10)
 	Display_BCD(Temperature+2);upper bits of temp bcd
 	Set_Cursor(1,12)
 	Display_BCD(Temperature+1);lower bits of temp bcd
 	
-	Preheat_Abort(Mins_BCD,Temperature+1)
-	
 	;Monitor for abort button (B6) at all times and if pressed, set Abort_Flag
 	;Also run MonitorTemp macro, which sets the abort flag under certain conditions
 	;MonitorTemp(Temperature) ;Will work once temperature is working
 	;If Start/Done button is pressed, immediately abort, as we don't need to check other abort conditions
+	;MonitorTemp(Temperature+2,Temperature+1)
 	push_button(#4)
 	jz CheckAbortFlag
 	sjmp Abortx
@@ -833,7 +869,7 @@ DisplayCooldowntouch:
 ;Run heating logic with SSR until SoakTemp degrees C at ~1-3 C/sec
 ;If CurrTemp >= SoakTemp, jump to DonePreheating	
 Preheat:
-	mov power, #100
+	setb POWER
 	mov a, BCD_soak_temp ; a = desired temperature
 	clr c
 	subb a, Temperature+1 ; temp = current temperature
@@ -853,22 +889,28 @@ DonePreheating:
  	ljmp ProgramRun_Loop
 ;Run logic to Maintain temperature at SoakTemp degrees C for SoakTime Seconds
 ;After soaktime seconds, jump to DoneSoaking
+
+;After CurrTemp >= SoakTemp, turn power off, else turn power on
 Soak:
-	mov power, #20
-	mov a, BCD_soak_time+1
+	mov a, BCD_soak_temp
 	clr c
-	subb a, Mins_BCD
-	jc DoneSoaking
-	jz CheckSecs_Soaking
-	ljmp ProgramRun_Loop
-	
-CheckSecs_Soaking:
+	subb a, Temperature+1
+	jc soak_next
+	sjmp continue_soak
+soak_next:
+	mov a, BCD_soak_temp+1
+	clr c
+	cjne a, Temperature+2, power_on
+	clr POWER
+	sjmp Continue_Soak	
+power_on:
+	setb POWER
+Continue_Soak:
 	mov a, BCD_soak_time
 	clr c
-	subb a, Secs_BCD
+	subb a, SoakTime_Secs
 	jc DoneSoaking	
-	ljmp ProgramRun_Loop
-	
+	ljmp ProgramRun_Loop		
 DoneSoaking:
 	clr SoakState_Flag
 	setb RampState_Flag
@@ -878,7 +920,7 @@ DoneSoaking:
 ;Run logic to heat until ReflowTemp degrees C is reached at ~1-3 C /sec
 ;After CurrTemp >= ReflowTemp, jump to DoneRamping
 Ramp:
-	mov power, #100
+	setb POWER
 	mov a, BCD_reflow_temp
 	clr c
 	subb a, Temperature+1
@@ -901,19 +943,34 @@ DoneRamping:
 ;Then logic to run until cooled <= ReflowTemp
 ;When it cools below ReflowTemp, jump to DoneReflowing
 Reflow:
-	mov power, #20
-	mov a, BCD_reflow_time+1
+	mov a, BCD_reflow_temp
 	clr c
-	subb a, ReflowTime_Mins
-	jc DoneReflowing
+	subb a, Temperature+1
+	jc reflow_next
+	sjmp continue_reflow
+reflow_next:
+	mov a, BCD_reflow_temp+1
+	clr c
+	cjne a, Temperature+2, power_on_reflow
+	clr POWER
+	sjmp continue_reflow
+power_on_reflow:
+	setb POWER
+continue_reflow:	
+	mov a, BCD_reflow_time+1
 	jz CheckSecs_Reflowing
-	ljmp ProgramRun_Loop
-	
+	cjne a, ReflowTime_Mins, checksecs
+checksecs:
+	mov a, ReflowTime_Secs
+	cjne a, #0x00, program_jump
+	sjmp DoneReflowing	
 CheckSecs_Reflowing:
-	mov a, BCD_reflow_time
+	mov a, BCD_reflow_time ;lower
 	clr c
 	subb a, ReflowTime_Secs
-	jc DoneReflowing	
+	jc DoneReflowing
+	jz CheckSecs_Reflowing
+program_jump:
 	ljmp ProgramRun_Loop
 	
 DoneReflowing:
@@ -922,10 +979,10 @@ DoneReflowing:
 	setb Transition_Flag
 	ljmp ProgramRun_Loop
 
+;Run logic to turn oven off and set a 'CoolEnoughToOpen' flag (which will trigger certain beeps) once it is cool enough to open the oven door
+;And once it is cool enough to touch, set the 'CoolEnoughToTouch' flag (which triggers other beeps)
 Cooldown:
-	;Run logic to turn oven off and set a 'CoolEnoughToOpen' flag (which will trigger certain beeps) once it is cool enough to open the oven door
-	;And once it is cool enough to touch, set the 'CoolEnoughToTouch' flag (which triggers other beeps)
-	mov power, #0
+	clr POWER
 	mov a, #60
 	clr c
 	subb a, Temperature+1
@@ -963,6 +1020,8 @@ DoneCooldowntouch:
 Abort:
 	;Program will jump here from ProgramRun: if it does, send command to turn off oven, stopping the program
 	;Clear screen first before displaying abort message
+	clr POWER
+	
 	WriteCommand(#0x28)
 	WriteCommand(#0x0c)
 	WriteCommand(#0x01) ;Clears the LCD
