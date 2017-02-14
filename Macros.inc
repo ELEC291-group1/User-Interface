@@ -239,8 +239,8 @@ endmac
 ?Preheat_Abort_1:
 	clr c
 	mov a, R2
-	subb a, #50
-	jnc Preheat_Abort_END
+	subb a, #0x50
+	jc Preheat_Abort_END
 	setb Abort_Flag
 Preheat_Abort_END:
 	ret
