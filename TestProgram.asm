@@ -1,4 +1,4 @@
-; Christian Schroeder
+; Christian Schroeder, 17018152
 ; Hannah Sawiuk, 51196160
 ; Jake Osborne
 ; ELEC 291, Project 1, Reflow Oven Controller
