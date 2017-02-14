@@ -64,19 +64,19 @@ Count1ms: 		 ds 2 ; used to count for one second
 Secs_BCD:		 ds 5 ;These two values are for the displayed runtime
 Mins_BCD:		 ds 5
 
-BCD_soak_temp: 	 ds 5 ;BCD value of Soak state temperature setting
-BCD_soak_time: 	 ds 5 ;BCD values of set soak time in seconds
-BCD_reflow_temp: ds 5
-BCD_reflow_time: ds 5
-SoakTime_Secs:   ds 5
-SoakTime_Mins:   ds 5
-ReflowTime_Secs: ds 5
-ReflowTime_Mins: ds 5
+BCD_soak_temp: 	 ds 2 ;BCD value of Soak state temperature setting
+BCD_soak_time: 	 ds 2 ;BCD values of set soak time in seconds
+BCD_reflow_temp: ds 2
+BCD_reflow_time: ds 2
+SoakTime_Secs:   ds 2
+SoakTime_Mins:   ds 2
+ReflowTime_Secs: ds 2
+ReflowTime_Mins: ds 2
 
 ;arithmetic variables
 x: 			 	 ds 4
 y: 		   		 ds 4
-Result: 		 ds 2	
+Result: 		 	ds 2	
 
 ;-------------------------------------------;
 ;                  Flags                    ;
