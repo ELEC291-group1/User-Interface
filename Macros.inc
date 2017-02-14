@@ -240,7 +240,7 @@ endmac
 	clr c
 	mov a, R2
 	subb a, #0x50
-	jc Preheat_Abort_END
+	jnc Preheat_Abort_END
 	setb Abort_Flag
 Preheat_Abort_END:
 	ret
