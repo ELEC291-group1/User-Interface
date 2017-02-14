@@ -108,6 +108,7 @@ mf: 					dbit 1 ;Math Flag for use with math32.inc
 Abort_Flag: 			dbit 1
 Seconds_flag: 			dbit 1
 HalfSecond_Flag:		dbit 1
+Length_Flag:			dbit 1
 
 ;-------------------------------------------;
 ;         Pins and Constant Strings         ;
@@ -272,22 +273,41 @@ Timer0_ISR:
 	mov TH0, #high(TIMER0_RELOAD)
 	mov TL0, #low(TIMER0_RELOAD)
 	setb TR0
-	jb Transition_Flag, Transitionbeep
-	jb DoorOpen_Flag, Doorbeep
-	jb CoolEnoughToTouch_Flag, Touchbeep		
+	jb Transition_Flag, Beep_1
+	jb CoolEnoughToTouch_Flag, Beep_6
+	jb CoolEnoughToOpen_Flag, Beep_L
 	reti
-Transitionbeep:
-	Beep(#1, #0)
-	clr Transition_Flag
+Beep_1:
+	mov a, #0x01
+	clr Length_Flag
+	sjmp loop1
+Beep_6:
+	mov a, #0x06
+	clr Length_Flag
+	sjmp loop1
+Beep_L:
+	setb Length_Flag
+	mov a, #0x01
+	sjmp loop1
+Beep_Loop:
+	jz Beep_Done
+	cpl SOUND_OUT
+	jb Length_Flag, Beep_Long
+	mov TH0, #high(TIMER0_RELOAD)
+	mov TL0, #low(TIMER0_RELOAD)
+	dec a
+	sjmp Beep_Loop
+Beep_Done:
+	clr SOUND_OUT
+	clr Length_Flag
 	reti
-Doorbeep:
-	Beep(#1, #1)
-	clr DoorOpen_Flag
-	reti
-Touchbeep:
-	Beep(#6, #0)
-	clr CoolEnoughToTouch_Flag
-	reti
+Beep_Long:
+	mov TH0, #high(TIMER0_RELOAD)
+	mov TL0, #low(TIMER0_RELOAD)
+	mov TH0, #high(TIMER0_RELOAD)
+	mov TL0, #low(TIMER0_RELOAD)
+	dec a
+	sjmp Beep_Loop
 	
 ;-------------------------------------------;
 ;         Timer 2 Initializiation           ;
@@ -430,6 +450,7 @@ MainProgram:
 	clr soak_menu_flag
 	clr reflow_menu_flag
 	clr POWER
+	clr Length_Flag
     
     ;Set Presets
     mov BCD_soak_temp, 		#0x40
