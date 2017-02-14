@@ -242,11 +242,12 @@ not_pressed:
 Preheat_Abort mac
 	push AR2
 	push AR3
-	push AR4
 	mov R2, %0 ;minute marker
 	mov R3, %1 ;temp lower
 	lcall ?sixty_second_mark
 	lcall ?Preheat_Abort_1
+	pop AR3
+	pop AR2
 endmac
 	
 ?sixty_second_mark:
