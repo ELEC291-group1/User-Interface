@@ -887,33 +887,36 @@ DonePreheating:
 ;Run logic to Maintain temperature at SoakTemp degrees C for SoakTime Seconds
 ;After soaktime seconds, jump to DoneSoaking
 
-;After CurrTemp >= SoakTemp, turn power off, else turn power on
+
+;if temp >= soak temp, power off
+;else, power on
 Soak:
-	mov a, BCD_soak_temp
+	mov a, BCD_soak_temp+1 ;upper bits
+	subb a, Temperature+2
+	jnz Soak_Continue
 	clr c
-	subb a, Temperature+1
-	jc soak_next
-	sjmp continue_soak
-soak_next:
-	mov a, BCD_soak_temp+1
-	clr c
-	cjne a, Temperature+2, power_on
-	clr POWER
-	sjmp Continue_Soak	
-power_on:
+	mov a, BCD_soak_temp; lower bits
+	subb a, Temperature+1; lower bits
+	jc Soak_Power_Off
 	setb POWER
-Continue_Soak:
-	mov a, BCD_soak_time
+	sjmp Soak_Continue
+Soak_Power_Off:
+	clr POWER
+Soak_Continue:
+	mov a, BCD_soak_time+1; upper
+	subb a, SoakTime_Mins
+	jnz Soak_Continue_2
 	clr c
+	mov a, BCD_soak_time ;lower
 	subb a, SoakTime_Secs
 	jc DoneSoaking	
+Soak_Continue_2:
 	ljmp ProgramRun_Loop		
-DoneSoaking:
+Soak_Done:
 	clr SoakState_Flag
 	setb RampState_Flag
 	setb Transition_Flag
 	ljmp ProgramRun_Loop
-
 ;Run logic to heat until ReflowTemp degrees C is reached at ~1-3 C /sec
 ;After CurrTemp >= ReflowTemp, jump to DoneRamping
 Ramp:
