@@ -903,7 +903,7 @@ Soak:
 	jc Soak_Power_Off
 	setb POWER
 	sjmp Soak_Continue
-Poak_Power_Off:
+Soak_Power_Off:
 	clr POWER
 Soak_Continue:
 	mov a, BCD_soak_time+1; upper
