@@ -397,6 +397,7 @@ Timer2_ISR_done:
 	reti
   
 ;-------------------------------------------;
+
 ;                Main Code                  ;
 ;-------------------------------------------;
 MainProgram:
@@ -425,6 +426,7 @@ MainProgram:
 	clr CoolEnoughToTouch_Flag
 	clr soak_menu_flag
 	clr reflow_menu_flag
+	clr POWER
     
     ;Set Presets
     mov BCD_soak_temp, 		#0x40
