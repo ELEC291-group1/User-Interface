@@ -1,5 +1,5 @@
-; Christian Schroeder
-; Hannah Sawiiiiiiuk, 51196160
+; Christian Schroeder, student number
+; Hannah Sawiuk, 51196160
 ; Jake Osborne
 ; ELEC 291, Project 1, Reflow Oven Controller
 ; Main file
