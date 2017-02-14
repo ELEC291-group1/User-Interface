@@ -351,14 +351,14 @@ check_reflow:
 	add a,#0x01
 	da a
 	mov ReflowTime_Secs,a
-	cjne a,#0x60, ContinueISR
-	mov a,#0x00
+	cjne a, #0x60, ContinueISR
+	mov a, #0x00
 	da a
-	mov ReflowTime_Secs,a
-	mov ReflowTime_Mins,a
-	add a,#0x01
-	da a
+	mov ReflowTime_Secs, a
 	mov a, ReflowTime_Mins
+	add a, #0x01
+	da a
+	mov ReflowTime_Mins, a
 	sjmp ContinueISR
 soak_timer:
 	mov a, SoakTime_Secs
@@ -369,10 +369,10 @@ soak_timer:
 	mov a,#0x00
 	da a
 	mov SoakTime_Secs,a
-	mov SoakTime_Mins,a
+	mov a, SoakTime_Mins
 	add a,#0x01
 	da a
-	mov a, SoakTime_Mins
+	mov SoakTime_Mins, a
 ContinueISR:	
 	clr a
 	mov Count1ms+0, a
