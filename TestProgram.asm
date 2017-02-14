@@ -386,6 +386,9 @@ ContinueISR:
 	cjne a,#0x60,Timer2_ISR_done
 	mov a,#0x00
 	da a
+	cjne a, Mins_BCD, ContinueISR_1
+	Preheat_Abort(Temperature+1)
+ContinueISR_1:
 	mov Secs_BCD, a
 	mov a, Mins_BCD
 	add a,#0x01
@@ -866,9 +869,6 @@ DisplayCooldowntouch:
 ;Run heating logic with SSR until SoakTemp degrees C at ~1-3 C/sec
 ;If CurrTemp >= SoakTemp, jump to DonePreheating	
 Preheat:
-
-	Preheat_Abort(Mins_BCD,Temperature+1)
-	
 	setb POWER
 	mov a, BCD_soak_temp ; a = desired temperature
 	clr c
