@@ -24,11 +24,11 @@ hex2bcd:
 	push AR2
 	
 	clr a
-	mov bcd+0, a ; Initialize BCD to 00-00-00-00-00 
-	mov bcd+1, a
-	mov bcd+2, a
-	mov bcd+3, a
-	mov bcd+4, a
+	mov Temperature+0, a ; Initialize BCD to 00-00-00-00-00 
+	mov Temperature+1, a
+	mov Temperature+2, a
+	mov Temperature+3, a
+	mov Temperature+4, a
 	mov r2, #32  ; Loop counter.
 
 hex2bcd_L0:
@@ -46,7 +46,7 @@ hex2bcd_L1:
     
 	; Perform bcd + bcd + carry using BCD arithmetic
 	mov r1, #5
-	mov r0, #(bcd+0)
+	mov r0, #(Temperature+0)
 hex2bcd_L2:   
 	mov a, @r0
 	addc a, @r0
@@ -84,11 +84,11 @@ hex2bcd2:
 	push AR2
 
 	clr a
-	mov bcd+0, a ; Initialize BCD to 00-00-00-00-00 
-	mov bcd+1, a
-	mov bcd+2, a
-	mov bcd+3, a
-	mov bcd+4, a
+	mov Temperature+0, a ; Initialize BCD to 00-00-00-00-00 
+	mov Temperature+1, a
+	mov Temperature+2, a
+	mov Temperature+3, a
+	mov Temperature+4, a
 	mov r2, #32  ; We need process 32 bits
 
 hex2bcd2_L0:
@@ -106,7 +106,7 @@ hex2bcd2_L1:
 
 	; Shif bcd left	
 	mov r1, #5	          ; BCD byte count = 5
-	mov r0, #(bcd+0)      ; r0 points to least significant bcd digits
+	mov r0, #(Temperature+0)      ; r0 points to least significant bcd digits
 hex2bcd2_L2:
 	push psw              ; Save carry
 	mov a, @r0
@@ -150,7 +150,7 @@ bcd2hex:
 bcd2hex_L0:
 	mov r1, #5	           ; BCD byte count = 5
 	clr c                  ; clear carry flag
-	mov r0, #(bcd+4)       ; r0 points to most significant bcd digits
+	mov r0, #(Temperature+4)       ; r0 points to most significant bcd digits
 bcd2hex_L1:
 	mov a, @r0             ; transfer bcd to accumulator
 	rrc a                  ; rotate right
