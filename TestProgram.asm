@@ -386,10 +386,11 @@ ContinueISR:
 	cjne a,#0x60,Timer2_ISR_done
 	mov a,#0x00
 	da a
+	mov Secs_BCD, a
 	cjne a, Mins_BCD, ContinueISR_1
 	Preheat_Abort(Temperature+1)
-ContinueISR_1:
-	mov Secs_BCD, a
+ContinueISR_1:	
+	clr a
 	mov a, Mins_BCD
 	add a,#0x01
 	da a
@@ -400,7 +401,6 @@ Timer2_ISR_done:
 	reti
   
 ;-------------------------------------------;
-
 ;                Main Code                  ;
 ;-------------------------------------------;
 MainProgram:
