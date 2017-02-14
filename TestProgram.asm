@@ -896,7 +896,7 @@ DonePreheating:
 Soak:
 	mov a, BCD_soak_temp+1 ;upper bits
 	subb a, Temperature+2
-	jnz Soak_Continue
+	cjne a, Temperature+2, Soak_Continue
 	clr c
 	mov a, BCD_soak_temp; lower bits
 	subb a, Temperature+1; lower bits
@@ -908,7 +908,7 @@ Soak_Power_Off:
 Soak_Continue:
 	mov a, BCD_soak_time+1; upper
 	subb a, SoakTime_Mins
-	jnz Soak_Continue_2
+	cjne a, SoakTime_Mins, Soak_Continue_2
 	clr c
 	mov a, BCD_soak_time ;lower
 	subb a, SoakTime_Secs
