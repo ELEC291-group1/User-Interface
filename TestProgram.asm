@@ -895,7 +895,6 @@ DonePreheating:
 ;else, power on
 Soak:
 	mov a, BCD_soak_temp+1 ;upper bits
-	subb a, Temperature+2
 	cjne a, Temperature+2, Soak_Continue
 	clr c
 	mov a, BCD_soak_temp; lower bits
@@ -961,7 +960,6 @@ power_on_reflow:
 continue_reflow:	
 	mov a, BCD_reflow_time+1
 	jz CheckSecs_Reflowing
-	cjne a, ReflowTime_Mins, checksecs
 checksecs:
 	mov a, ReflowTime_Secs
 	cjne a, #0x00, program_jump
