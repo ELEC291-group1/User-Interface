@@ -1,8 +1,8 @@
 ; Christian Schroeder
-; Hannah Sawiuk
+; Hannah Sawiuk, 51196160
 ; Jake Osborne
 ; ELEC 291, Project 1, Reflow Oven Controller
-; Main file, This is a test?
+; Main file
 $MODLP52
 
 org 0x0000
