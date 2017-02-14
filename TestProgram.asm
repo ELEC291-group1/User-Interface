@@ -773,8 +773,6 @@ ProgramRun_Loop:
 	Read_ADC_Channel(0)
 	lcall ConvertNum; converts voltage received to temperature
 	
-	Preheat_Abort(Mins_BCD,Temperature+1)
-	
 	jnb HalfSecond_Flag, DontPrintTemp
 	Set_Cursor(1,10)
 	Display_BCD(Temperature+2);upper bits of temp bcd
@@ -868,6 +866,9 @@ DisplayCooldowntouch:
 ;Run heating logic with SSR until SoakTemp degrees C at ~1-3 C/sec
 ;If CurrTemp >= SoakTemp, jump to DonePreheating	
 Preheat:
+
+	Preheat_Abort(Mins_BCD,Temperature+1)
+	
 	setb POWER
 	mov a, BCD_soak_temp ; a = desired temperature
 	clr c
