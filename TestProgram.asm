@@ -6,13 +6,13 @@
 $MODLP52
 
 org 0x0000
-   ljmp MainProgram
+	ljmp MainProgram
    
-; Timer/Counter 0 overflow interrupt vector
+;Timer/Counter 0 overflow interrupt vector
 org 0x000B
 	ljmp Timer0_ISR
 	
-; Timer/Counter 2 overflow interrupt vector
+;Timer/Counter 2 overflow interrupt vector
 org 0x002B
 	ljmp Timer2_ISR
 
@@ -30,27 +30,27 @@ endmac
 ?Wait_Milli_Seconds:
 	push AR0
 	push AR1
-L3: mov R1, #45
-L2: mov R0, #166
-L1: djnz R0, L1 ; 3 cycles->3*45.21123ns*166=22.51519us
-    djnz R1, L2 ; 22.51519us*45=1.013ms
-    djnz R2, L3 ; number of millisecons to wait passed in R2
-    pop AR1
-    pop AR0
-    ret
+L3: 	mov R1, #45
+L2: 	mov R0, #166
+L1: 	djnz R0, L1 ; 3 cycles->3*45.21123ns*166=22.51519us
+    	djnz R1, L2 ; 22.51519us*45=1.013ms
+    	djnz R2, L3 ; number of millisecons to wait passed in R2
+    	pop AR1
+    	pop AR0
+    	ret
 ;-------------------------------------------;
 ;               Constants                   ;
 ;-------------------------------------------;
 
-MAX_TEMP_UPPER EQU 02	
-MAX_TEMP_LOWER EQU 35 
-CLK            EQU 22118400
-BAUD		   EQU 115200
-T1LOAD 		   EQU (0x100-(CLK/(16*BAUD)))
-TIMER0_RATE    EQU 4096     ; 2048Hz squarewave (peak amplitude of CEM-1203 speaker)
-TIMER0_RELOAD  EQU ((65536-(CLK/TIMER0_RATE)))
-TIMER2_RATE    EQU 1000     ; 1000Hz, for a timer tick of 1ms
-TIMER2_RELOAD  EQU ((65536-(CLK/TIMER2_RATE)))   
+MAX_TEMP_UPPER 	EQU 02	
+MAX_TEMP_LOWER 	EQU 35 
+CLK            	EQU 22118400
+BAUD		EQU 115200
+T1LOAD 		EQU (0x100-(CLK/(16*BAUD)))
+TIMER0_RATE    	EQU 4096     ; 2048Hz squarewave (peak amplitude of CEM-1203 speaker)
+TIMER0_RELOAD  	EQU ((65536-(CLK/TIMER0_RATE)))
+TIMER2_RATE    	EQU 1000     ; 1000Hz, for a timer tick of 1ms
+TIMER2_RELOAD  	EQU ((65536-(CLK/TIMER2_RATE)))   
  
 ;-------------------------------------------;
 ;                Variables                  ;
@@ -58,28 +58,28 @@ TIMER2_RELOAD  EQU ((65536-(CLK/TIMER2_RATE)))
 
 DSEG at 30H
 
-Temperature:	 ds 5 ;temperature BCD value
-Count1ms: 		 ds 2 ; used to count for one second
+Temperature:		ds 5 ;temperature BCD value
+Count1ms: 		ds 2 ; used to count for one second
 
-Secs_BCD:		 ds 5 ;These two values are for the displayed runtime
-Mins_BCD:		 ds 5
+Secs_BCD:		ds 5 ;These two values are for the displayed runtime
+Mins_BCD:		ds 5
 
-BCD_soak_temp: 	 ds 2 ;BCD value of Soak state temperature setting
-BCD_soak_time: 	 ds 2 ;BCD values of set soak time in seconds
-BCD_reflow_temp: ds 2
-BCD_reflow_time: ds 2
-SoakTime_Secs:   ds 2
-SoakTime_Mins:   ds 2
-ReflowTime_Secs: ds 2
-ReflowTime_Mins: ds 2
+BCD_soak_temp: 	 	ds 2 ;BCD value of Soak state temperature setting
+BCD_soak_time: 	 	ds 2 ;BCD values of set soak time in seconds
+BCD_reflow_temp: 	ds 2
+BCD_reflow_time: 	ds 2
+SoakTime_Secs:   	ds 2
+SoakTime_Mins:   	ds 2
+ReflowTime_Secs: 	ds 2
+ReflowTime_Mins: 	ds 2
 
-pwm_count:	 ds 1
-pwm:		 ds 1
+pwm_count:	 	ds 1
+pwm:		 	ds 1
 
 ;arithmetic variables
-x: 			 	 ds 4
-y: 		   		 ds 4
-Result: 		 	ds 2	
+x: 			ds 4
+y: 		   	ds 4
+Result: 		ds 2	
 
 ;-------------------------------------------;
 ;                  Flags                    ;
@@ -88,11 +88,11 @@ Result: 		 	ds 2
 BSEG
 
 ;State Flags - Only one flag on at once 
-PreheatState_Flag:      dbit 1
+PreheatState_Flag:		dbit 1
 SoakState_Flag: 		dbit 1
 RampState_Flag:	 		dbit 1
 ReflowState_Flag: 		dbit 1
-CooldownState_Flag: 	dbit 1
+CooldownState_Flag: 		dbit 1
 
 soak_menu_flag: 		dbit 1
 reflow_menu_flag:		dbit 1
@@ -101,12 +101,12 @@ reflow_menu_flag:		dbit 1
 ;Use with State flags in logic in order to determine what to do eg. beeps to play when x state is (just recently) on and transition flag is on as well
 Transition_Flag: 		dbit 1 
 
-CoolEnoughToOpen_Flag: 	dbit 1
-CoolEnoughToTouch_Flag: dbit 1
-Cooldowntouch_Flag: 	dbit 1
+CoolEnoughToOpen_Flag: 		dbit 1
+CoolEnoughToTouch_Flag: 	dbit 1
+Cooldowntouch_Flag: 		dbit 1
 DoorOpen_Flag: 			dbit 1
 
-mf: 					dbit 1 ;Math Flag for use with math32.inc
+mf: 				dbit 1 ;Math Flag for use with math32.inc
 
 Abort_Flag: 			dbit 1
 Seconds_flag: 			dbit 1
@@ -119,63 +119,63 @@ Length_Flag:			dbit 1
 
 CSEG
 ;ADC Master/Slave pins
-CE_ADC  EQU P2.0
-MY_MOSI EQU P2.1
-MY_MISO EQU P2.2
-MY_SCLK EQU P2.3
+CE_ADC  	EQU P2.0
+MY_MOSI 	EQU P2.1
+MY_MISO 	EQU P2.2
+MY_SCLK 	EQU P2.3
 
 ;LCD pins
-LCD_RS  EQU P1.2
-LCD_RW  EQU P1.3
-LCD_E   EQU P1.4
-LCD_D4  EQU P3.2
-LCD_D5  EQU P3.3
-LCD_D6  EQU P3.4
-LCD_D7  EQU P3.5
+LCD_RS  	EQU P1.2
+LCD_RW  	EQU P1.3
+LCD_E   	EQU P1.4
+LCD_D4  	EQU P3.2
+LCD_D5  	EQU P3.3
+LCD_D6  	EQU P3.4
+LCD_D7  	EQU P3.5
 
 SOUND_OUT EQU P3.7 ;Temp value, modify to whatever pin is attached to speaker
 POWER     EQU P2.4
 ;Pushbutton pins
-Button_1      EQU P0.1 ;1
-Button_2      EQU P0.3 ;2
-Button_3      EQU P0.5 ;3
-DONE_BUTTON   EQU P2.5 ;4
-BOOT_BUTTON   EQU P4.5 ;5
+Button_1      	EQU P0.1 ;1
+Button_2      	EQU P0.3 ;2
+Button_3      	EQU P0.5 ;3
+DONE_BUTTON   	EQU P2.5 ;4
+BOOT_BUTTON   	EQU P4.5 ;5
 
 ;Main Menu Strings
 Temp_Message:	db '>TEMP', 0
 State_Message:	db '>STATE', 0
 Time_Message:	db '>TIME', 0
-TEST_1:			db '<"DONE" TO EXIT>', 0
+TEST_1:		db '<"DONE" TO EXIT>', 0
 soak_message:	db ' Soak         B1', 0
 reflow_message:	db ' Reflow       B2', 0
 choose_soak:	db '>Soak         B1', 0
 choose_reflow:	db '>Reflow       B2', 0
-temp_soak:		db 'Soak Temp:', 0
+temp_soak:	db 'Soak Temp:', 0
 temp_reflow:	db 'Reflow Temp:', 0
-time_soak:		db 'Soak Time:', 0
+time_soak:	db 'Soak Time:', 0
 time_reflow:	db 'Reflow Time:', 0
-no_state:		db 'NO STATE CHOSEN.'
+no_state:	db 'NO STATE CHOSEN.'
 setTemp_guide:	db 'xxxx deg.C', 0
 setTime_guide:	db 'xx:xx MIN/SEC', 0
 
 ;Runtime Strings           1234567890123456
-Runtime_Message:       db 'xx:xx', 0
-Current_Temp_Message:  db 'xxxx C', 0
-State_Message_Runtime: db 'State: xxxxxxxxx', 0
+Runtime_Message:       	db 'xx:xx', 0
+Current_Temp_Message:  	db 'xxxx C', 0
+State_Message_Runtime: 	db 'State: xxxxxxxxx', 0
 
 ;State Display Strings     1234567890123456
-Off_Display:	  db      'OFF      ', 0
-Preheat_Display:  db      'PREHEAT  ', 0
-Soak_Display:     db      'SOAK     ', 0
-Ramp_Display:     db      'RAMP     ', 0
-Reflow_Display:   db      'REFLOW   ', 0
-Cooldown_Display: db      'COOLDOWN ', 0
-Open:			  db      'OPEN OVEN', 0
-PCBDone:		  db      'PCB DONE ', 0
+Off_Display:	  	db      'OFF      ', 0
+Preheat_Display:  	db      'PREHEAT  ', 0
+Soak_Display:     	db      'SOAK     ', 0
+Ramp_Display:     	db      'RAMP     ', 0
+Reflow_Display:   	db      'REFLOW   ', 0
+Cooldown_Display: 	db      'COOLDOWN ', 0
+Open:			db      'OPEN OVEN', 0
+PCBDone:		db      'PCB DONE ', 0
 
 ;Misc Strings
-Abort_String: 	  db 'PROCESS ABORTED', 0
+Abort_String: 	  	db 'PROCESS ABORTED', 0
 
 ;-------------------------------------------;
 ;               Include Files               ;
@@ -221,15 +221,15 @@ DO_SPI_G_LOOP:
 ;        Serial Port Initialization         ;
 ;-------------------------------------------;
 
-; Configure the serial port and baud rate using timer 1
+;Configure the serial port and baud rate using timer 1
 InitSerialPort:
-    ; Since the reset button bounces, we need to wait a bit before
-    ; sending messages, or risk displaying gibberish!
-    mov R1, #222
-    mov R0, #166
-    djnz R0, $   ; 3 cycles->3*45.21123ns*166=22.51519us
-    djnz R1, $-4 ; 22.51519us*222=4.998ms
-    ; Now we can safely proceed with the configuration
+    	;Since the reset button bounces, we need to wait a bit before
+    	;sending messages, or risk displaying gibberish!
+    	mov R1, #222
+    	mov R0, #166
+    	djnz R0, $   ; 3 cycles->3*45.21123ns*166=22.51519us
+    	djnz R1, $-4 ; 22.51519us*222=4.998ms
+    	;Now we can safely proceed with the configuration
 	clr	TR1
 	anl	TMOD, #0x0f
 	orl	TMOD, #0x20
@@ -238,20 +238,20 @@ InitSerialPort:
 	mov	TL1,#T1LOAD
 	setb TR1
 	mov	SCON,#0x52
-    ret
+    	ret
 
 ;-------------------------------------------;
 ;     Converting Voltage to Temperature     ;
 ;-------------------------------------------;
 ConvertNum:
-    mov y+0,Result
-    mov y+1,Result+1
-    mov y+2,#0
-    mov y+3,#0
-    load_x(37); 1/(41e^-6 * 330) ~= 74
-    lcall mul32
-    lcall hex2bcd
-    ret  
+    	mov y+0,Result
+    	mov y+1,Result+1
+    	mov y+2,#0
+    	mov y+3,#0
+    	load_x(37); 1/(41e^-6 * 330) ~= 74
+    	lcall mul32
+    	lcall hex2bcd
+    	ret  
 ;-------------------------------------------;
 ;         Timer 0 Initialization            ;
 ;-------------------------------------------;
@@ -263,8 +263,8 @@ Timer0_Init:
 	mov TH0, #high(TIMER0_RELOAD)
 	mov TL0, #low(TIMER0_RELOAD)
 	; Enable the timer and interrupts
-    setb ET0  ; Enable timer 0 interrupt
-    setb TR0  ; Start timer 0
+    	setb ET0  ; Enable timer 0 interrupt
+    	setb TR0  ; Start timer 0
 	ret
 	
 ;-------------------------------------------;
@@ -291,8 +291,8 @@ Timer2_Init:
 	mov Count1ms+0, a
 	mov Count1ms+1, a
 	; Enable the timer and interrupts
-    setb ET2  ; Enable timer 2 interrupt
-    setb TR2  ; Enable timer 2
+    	setb ET2  ; Enable timer 2 interrupt
+    	setb TR2  ; Enable timer 2
 	ret
 ;-------------------------------------------;
 ;                Timer 2 ISR                ;
@@ -402,62 +402,62 @@ Timer2_ISR_done:
 ;                Main Code                  ;
 ;-------------------------------------------;
 MainProgram:
-    mov SP, #7FH ; Set the stack pointer to the begining of idata
-    mov PMOD, #0 ; Configure all ports in bidirectional mode
-    setb CE_ADC ;ADC enabled when bit is cleared, so start disabled
+    	mov SP, #7FH ; Set the stack pointer to the begining of idata
+    	mov PMOD, #0 ; Configure all ports in bidirectional mode
+    	setb CE_ADC ;ADC enabled when bit is cleared, so start disabled
     
-    ;Initialize Serial Port Interface, and LCD
-    lcall InitSerialPort
-    lcall INIT_SPI
-    lcall LCD_4BIT
-    lcall Timer2_Init
-    lcall Timer0_Init
+    	;Initialize Serial Port Interface, and LCD
+    	lcall InitSerialPort
+    	lcall INIT_SPI
+    	lcall LCD_4BIT
+    	lcall Timer2_Init
+    	lcall Timer0_Init
     
-    ;Set Flag Initial Values
-    clr Abort_Flag
-    clr SoakState_Flag
-    clr RampState_Flag
-    clr ReflowState_Flag
-    clr CooldownState_Flag
-    setb PreheatState_Flag ;Set Preheat flag to 1 at power on (it won't start preheating until it gets to that loop via Start button)
+    	;Set Flag Initial Values
+    	clr Abort_Flag
+    	clr SoakState_Flag
+    	clr RampState_Flag
+    	clr ReflowState_Flag
+    	clr CooldownState_Flag
+    	setb PreheatState_Flag ;Set Preheat flag to 1 at power on (it won't start preheating until it gets to that loop via Start button)
     
-    clr Transition_Flag
-    clr mf
-    clr CoolEnoughToOpen_Flag
+    	clr Transition_Flag
+    	clr mf
+    	clr CoolEnoughToOpen_Flag
 	clr CoolEnoughToTouch_Flag
 	clr soak_menu_flag
 	clr reflow_menu_flag
 	clr POWER
 	clr Length_Flag
     
-    ;Set Presets
-    mov BCD_soak_temp, 		#0x40
+    	;Set Presets
+    	mov BCD_soak_temp, 	#0x40
 	mov BCD_soak_temp+1, 	#0x01
 	mov BCD_reflow_temp, 	#0x19
 	mov BCD_reflow_temp+1,	#0x02
 	
-	mov BCD_soak_time, 		#0x00
+	mov BCD_soak_time, 	#0x00
 	mov BCD_soak_time+1,	#0x01
 	mov BCD_reflow_time, 	#0x30
 	mov BCD_reflow_time+1,	#0x00
 	
-	mov Mins_BCD, #0x00
-	mov Secs_BCD, #0x00 
+	mov Mins_BCD, 		#0x00
+	mov Secs_BCD, 		#0x00 
 	
 	;Zero the runtime of the reflow state
-	mov ReflowTime_Secs, #0x00
-	mov	ReflowTime_Mins, #0x00 
-	mov SoakTime_Secs, #0x00
-	mov	SoakTime_Mins, #0x00
+	mov ReflowTime_Secs, 	#0x00
+	mov ReflowTime_Mins, 	#0x00 
+	mov SoakTime_Secs, 	#0x00
+	mov SoakTime_Mins, 	#0x00
 	
 	;Give temp an initial value so it doesn't auto-abort because of an unknown
-	mov Temperature+0, #0x00
-	mov Temperature+1, #0x00
-	mov Temperature+2, #0x00
+	mov Temperature+0, 	#0x00
+	mov Temperature+1, 	#0x00
+	mov Temperature+2, 	#0x00
        
 MenuLoop:
-    ;Display Initial Screen (Also clear it because it'll have other screens going to it)
-    Set_Cursor(1,1)
+    	;Display Initial Screen (Also clear it because it'll have other screens going to it)
+    	Set_Cursor(1,1)
 	Send_Constant_String(#Temp_Message)
 	Set_Cursor(1,11)
 	Send_Constant_String(#State_Message)
@@ -817,10 +817,10 @@ DontAbort:
 	;lcall putchar
 	;mov a, #'C'
 	;lcall putchar
-    ;mov a,#'\r'
-    ;lcall putchar
-    ;mov a,#'\n'
-    ;lcall putchar	
+    	;mov a,#'\r'
+    	;lcall putchar
+    	;mov a,#'\n'
+    	;lcall putchar	
 	;Here we can check CurrentState flags, IE ReflowState_Flag
 	;Depending on the current set state flag, jump to state loops until that state logic is done (ie when reflow state ends, ReflowState_Flag gets set to zero and CooldownState_Flag gets set to 1)
 	;State loops do their own checks quickly, and come back to the program run loop, which does the constant temp monitoring/display/spi logic
