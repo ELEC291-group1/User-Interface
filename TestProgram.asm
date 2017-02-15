@@ -833,15 +833,19 @@ DisplayCoolOven_jump:
 DisplayTouch_jump:
 	Set_Cursor(2,8)
 	Send_Constant_String(#PCBDone)
+	mov a, #0x0D
+ENDBEEPS:
+	cpl TR0
+	Wait_Milli_Seconds(#250)
+	Wait_Milli_Seconds(#250)
+	dec a
+	jnz ENDBEEPS
+	clr TR0
 	ljmp ENDLOOP
 
 ;Display Done here to bypass the length of jb
 ;Display current state	
 DisplayPreheat:
-	cpl TR0
-	Wait_Milli_Seconds(#250)
-	Wait_Milli_Seconds(#250)
-	cpl Tr0
 	Set_Cursor(2,8)
 	Send_Constant_String(#Preheat_Display)
 	ljmp Preheat ;No need to check flags twice, so after updating display, jump right into the specified state
@@ -895,7 +899,7 @@ DonePreheating:
 	cpl TR0
 	Wait_Milli_Seconds(#250)
 	Wait_Milli_Seconds(#250)
-	cpl Tr0
+	cpl TR0
  	ljmp ProgramRun_Loop
 ;Run logic to Maintain temperature at SoakTemp degrees C for SoakTime Seconds
 ;After soaktime seconds, jump to DoneSoaking
@@ -930,7 +934,7 @@ Soak_Done:
 	cpl TR0
 	Wait_Milli_Seconds(#250)
 	Wait_Milli_Seconds(#250)
-	cpl Tr0
+	cpl TR0
 	ljmp ProgramRun_Loop
 ;Run logic to heat until ReflowTemp degrees C is reached at ~1-3 C /sec
 ;After CurrTemp >= ReflowTemp, jump to DoneRamping
@@ -955,7 +959,7 @@ DoneRamping:
 	cpl TR0
 	Wait_Milli_Seconds(#250)
 	Wait_Milli_Seconds(#250)
-	cpl Tr0
+	cpl TR0
 	ljmp ProgramRun_Loop
 
 ;Run logic to heat until max temp at some deg/s
@@ -998,7 +1002,7 @@ DoneReflowing:
 	cpl TR0
 	Wait_Milli_Seconds(#250)
 	Wait_Milli_Seconds(#250)
-	cpl Tr0
+	cpl TR0
 	ljmp ProgramRun_Loop
 
 ;Run logic to turn oven off and set a 'CoolEnoughToOpen' flag (which will trigger certain beeps) once it is cool enough to open the oven door
@@ -1019,6 +1023,12 @@ DoneCoolDown:
 	clr CooldownState_Flag
 	setb Transition_Flag
 	setb CoolEnoughToOpen_Flag
+	cpl TR0
+	Wait_Milli_Seconds(#250)
+	Wait_Milli_Seconds(#250)
+	Wait_Milli_Seconds(#250)
+	Wait_Milli_Seconds(#250)
+	cpl TR0
 	ljmp ProgramRun_Loop
 	
 OpenOven:
