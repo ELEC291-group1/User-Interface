@@ -742,6 +742,7 @@ ProgramRun:
 	Wait_Milli_Seconds(#10) ;Wait for the clear to finish
 	
 	setb EA   ; Enable Global interrupts
+	cpl TR0
 	
 	;Display the program headings (Runtime, State, and Temp at current time)	
 	;Display Current runtime on top of LCD, as well as state
@@ -809,11 +810,11 @@ DontAbort:
 	;Here we can check CurrentState flags, IE ReflowState_Flag
 	;Depending on the current set state flag, jump to state loops until that state logic is done (ie when reflow state ends, ReflowState_Flag gets set to zero and CooldownState_Flag gets set to 1)
 	;State loops do their own checks quickly, and come back to the program run loop, which does the constant temp monitoring/display/spi logic
-	jb PreheatState_Flag, DisplayPreheat
-	jb SoakState_Flag, DisplaySoak
-	jb RampState_Flag, DisplayRamp
-	jb ReflowState_Flag, DisplayReflow
-	jb CooldownState_Flag, DisplayCooldown_jump
+	jb PreheatState_Flag, DisplayPreheat 		; 1 beep
+	jb SoakState_Flag, DisplaySoak			; 1 beep
+	jb RampState_Flag, DisplayRamp			; 1 beep
+	jb ReflowState_Flag, DisplayReflow		; 1 beep
+	jb CooldownState_Flag, DisplayCooldown_jump	
 	jb Cooldowntouch_Flag, Cooldowntouch_jump
 	ljmp ProgramRun_Loop
 	
