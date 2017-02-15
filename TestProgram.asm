@@ -743,6 +743,7 @@ ProgramRun:
 	Wait_Milli_Seconds(#10) ;Wait for the clear to finish
 	
 	setb EA   ; Enable Global interrupts
+	cpl TR0
 	
 	;Display the program headings (Runtime, State, and Temp at current time)	
 	;Display Current runtime on top of LCD, as well as state
@@ -810,13 +811,13 @@ DontAbort:
 	;Here we can check CurrentState flags, IE ReflowState_Flag
 	;Depending on the current set state flag, jump to state loops until that state logic is done (ie when reflow state ends, ReflowState_Flag gets set to zero and CooldownState_Flag gets set to 1)
 	;State loops do their own checks quickly, and come back to the program run loop, which does the constant temp monitoring/display/spi logic
-	jb PreheatState_Flag, DisplayPreheat
-	jb SoakState_Flag, DisplaySoak
-	jb RampState_Flag, DisplayRamp
-	jb ReflowState_Flag, DisplayReflow_jump
-	jb CooldownState_Flag, DisplayCooldown_jump
-	jb CoolEnoughToOpen_Flag, DisplayCoolOven_jump
-	jb CoolEnoughToTouch_Flag, DisplayTouch_jump
+	jb PreheatState_Flag, DisplayPreheat			; 1 beep
+	jb SoakState_Flag, DisplaySoak				; 1 beep
+	jb RampState_Flag, DisplayRamp				; 1 beep
+	jb ReflowState_Flag, DisplayReflow_jump			; 1 beep
+	jb CooldownState_Flag, DisplayCooldown_jump		; 1 beep
+	jb CoolEnoughToOpen_Flag, DisplayCoolOven_jump		; 1 long beep
+	jb CoolEnoughToTouch_Flag, DisplayTouch_jump		; 6 short beeps
 	ljmp ProgramRun_Loop
 	
 DisplayReflow_jump:
@@ -833,22 +834,38 @@ DisplayTouch_jump:
 ;Display Done here to bypass the length of jb
 ;Display current state	
 DisplayPreheat:
+	cpl TR0
+	Wait_Milli_Seconds(#250)
+	Wait_Milli_Seconds(#250)
+	cpl Tr0
 	Set_Cursor(2,8)
 	Send_Constant_String(#Preheat_Display)
 	ljmp Preheat ;No need to check flags twice, so after updating display, jump right into the specified state
 
 ;See DisplayPreheat above as this is basically the same thing for each state	
 DisplaySoak:
+	cpl TR0
+	Wait_Milli_Seconds(#250)
+	Wait_Milli_Seconds(#250)
+	cpl Tr0
 	Set_Cursor(2,8)
 	Send_Constant_String(#Soak_Display)
 	ljmp Soak
 	
 DisplayRamp:
+	cpl TR0
+	Wait_Milli_Seconds(#250)
+	Wait_Milli_Seconds(#250)
+	cpl Tr0
 	Set_Cursor(2,8)
 	Send_Constant_String(#Ramp_Display)
 	ljmp Ramp
 	
 DisplayReflow:
+	cpl TR0
+	Wait_Milli_Seconds(#250)
+	Wait_Milli_Seconds(#250)
+	cpl Tr0
 	Set_Cursor(2,8)
 	Send_Constant_String(#Reflow_Display)
 	ljmp Reflow
