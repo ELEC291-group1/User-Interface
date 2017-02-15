@@ -743,7 +743,9 @@ ProgramRun:
 	Wait_Milli_Seconds(#10) ;Wait for the clear to finish
 	
 	setb EA   ; Enable Global interrupts
-	cpl TR0
+	Wait_Milli_Seconds(#250)
+	Wait_Milli_Seconds(#250)
+	cpl Tr0
 	
 	;Display the program headings (Runtime, State, and Temp at current time)	
 	;Display Current runtime on top of LCD, as well as state
@@ -844,28 +846,16 @@ DisplayPreheat:
 
 ;See DisplayPreheat above as this is basically the same thing for each state	
 DisplaySoak:
-	cpl TR0
-	Wait_Milli_Seconds(#250)
-	Wait_Milli_Seconds(#250)
-	cpl Tr0
 	Set_Cursor(2,8)
 	Send_Constant_String(#Soak_Display)
 	ljmp Soak
 	
 DisplayRamp:
-	cpl TR0
-	Wait_Milli_Seconds(#250)
-	Wait_Milli_Seconds(#250)
-	cpl Tr0
 	Set_Cursor(2,8)
 	Send_Constant_String(#Ramp_Display)
 	ljmp Ramp
 	
 DisplayReflow:
-	cpl TR0
-	Wait_Milli_Seconds(#250)
-	Wait_Milli_Seconds(#250)
-	cpl Tr0
 	Set_Cursor(2,8)
 	Send_Constant_String(#Reflow_Display)
 	ljmp Reflow
@@ -900,6 +890,10 @@ DonePreheating:
 	clr PreheatState_Flag
 	setb SoakState_Flag
 	setb Transition_Flag
+	cpl TR0
+	Wait_Milli_Seconds(#250)
+	Wait_Milli_Seconds(#250)
+	cpl Tr0
  	ljmp ProgramRun_Loop
 ;Run logic to Maintain temperature at SoakTemp degrees C for SoakTime Seconds
 ;After soaktime seconds, jump to DoneSoaking
@@ -931,6 +925,10 @@ Soak_Done:
 	clr SoakState_Flag
 	setb RampState_Flag
 	setb Transition_Flag
+	cpl TR0
+	Wait_Milli_Seconds(#250)
+	Wait_Milli_Seconds(#250)
+	cpl Tr0
 	ljmp ProgramRun_Loop
 ;Run logic to heat until ReflowTemp degrees C is reached at ~1-3 C /sec
 ;After CurrTemp >= ReflowTemp, jump to DoneRamping
@@ -952,6 +950,10 @@ DoneRamping:
 	clr RampState_Flag
 	setb ReflowState_Flag
 	setb Transition_Flag
+	cpl TR0
+	Wait_Milli_Seconds(#250)
+	Wait_Milli_Seconds(#250)
+	cpl Tr0
 	ljmp ProgramRun_Loop
 
 ;Run logic to heat until max temp at some deg/s
@@ -991,6 +993,10 @@ DoneReflowing:
 	clr ReflowState_Flag
 	setb CooldownState_Flag
 	setb Transition_Flag
+	cpl TR0
+	Wait_Milli_Seconds(#250)
+	Wait_Milli_Seconds(#250)
+	cpl Tr0
 	ljmp ProgramRun_Loop
 
 ;Run logic to turn oven off and set a 'CoolEnoughToOpen' flag (which will trigger certain beeps) once it is cool enough to open the oven door
