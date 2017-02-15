@@ -1,15 +1,21 @@
 CSEG
-; Christian Schroeder
-; Hannah Sawiuk
-; Jake Osborne
-; ELEC 291, Project 1, Reflow Oven Controller
-; macros.inc
 
+; Christian Schroeder
+
+; Hannah Sawiuk
+
+; Jake Osborne
+
+; ELEC 291, Project 1, Reflow Oven Controller
+
+; macros.inc
 
 ;-------------------------------------------;
 ;                Functions                  ;
 ;-------------------------------------------;
+
 ; Send a character using the serial port
+
 putchar:
     jnb TI, putchar
     clr TI
@@ -19,7 +25,6 @@ putchar:
 ;-------------------------------------------;
 ;                 Macros                    ;
 ;-------------------------------------------;
-
 ;1.
 ;Purpose: Reads a voltage at x channel of ADC Chip
 ;Usage: Read_ADC_Channel(x) 
@@ -30,8 +35,8 @@ Read_ADC_Channel mac
 	lcall ?Read_ADC_Channel
 endmac
 
-
 ;1.    
+
 ?Read_ADC_Channel:
 	clr CE_ADC
 	mov R0, #00000001B ; Start bit:1
@@ -53,8 +58,6 @@ endmac
 	mov Result+1,R7
 	mov Result,R6
 	ret
-
-
 ;2.
 ;Purpose: Monitors temperature and stops Oven if too hot. Will be updated as a more multipurpose macro to monitor multiple safety hazards
 ;Usage: MonitorTemp(x+2,x+1), where x is the BCD temperature in celsius - use in a loop to constantly check the temp passes all the current tests
@@ -72,18 +75,14 @@ endmac
 ;2.
 ?MonitorTemp:
 	mov a, R2
-	clr c
-	subb a,#MAX_TEMP_UPPER 
-	jnc CheckLower
-	sjmp TempMonitorReturn 
-	
+	cjne a, #0x02,  TempMonitorReturn 
 CheckLower:
 	mov a, R3
 	clr c
-	subb a,#MAX_TEMP_LOWER
+	subb a, #0x35
 	jnc Abort_mac
 	sjmp TempMonitorReturn
-			 
+
 ;If any unsafe conditions above are met, the program will jump here, and set this flag which will shut down the program in a timer0 interrupt
 Abort_mac:
 	setb Abort_Flag
@@ -91,7 +90,7 @@ Abort_mac:
 TempMonitorReturn:
 	ret
 
-    
+
 ;3.
 ;Purpose: Serially transmits a BCD value to Putty/Serial Port
 ;Usage: Send_BCD(BCD_val) sends BCD_val serially
@@ -116,58 +115,7 @@ endmac
     lcall putchar
     pop acc
 	ret
-;4.
-;Purpose: Converts voltage to temperature (use as a periodic update function)
-;Usage: Call this function Voltage2Temp() and it will take the 10 bit adc value stored in result and result+1 and use it to update the BCD_temp
-;Return: No return, but calling this updates the BCD temp based on the current voltage in the recently read ADC channel
-Voltage2Temp mac
-	lcall ?Voltage2Temp
-endmac
 
-;4.
-?Voltage2Temp:
-    ;Use math32 functions and voltage -> degrees formula for our thermocouple to convert an input voltage to a temperature BCD   
-    ret
-    
-        
-
-;5.
-;Purpose: Beeps with a certain frequency and length
-;Usage: Beep(repititions,length) will beep (repetitions) times for (length) milliseconds
-;Return: Beeeeep
-;Beep mac
-;	push AR2
-;	mov R2, %0 ;repetitions
-;	push AR3
-;	mov R3, %1 ; length
-;	lcall ?Beep
-;	pop AR3
-;	pop AR2
-;endmac
-;
-;5.
-;?Beep:
-;	mov a, R2  ;number of repetitions
-;L1_beep:	
-;	jnz L2_beep  ; while a > 0, repeat beep
-;	sjmp done_beep 
-;L2_beep:
-;	cpl SOUND_OUT
-;	cjne R3, #0, long_beep
-;	Wait_Milli_Seconds(#250)
-;beep_loop:
-;	dec a
-;	sjmp L1_beep
-;done_beep:
-;	clr SOUND_OUT
-;	ret
-;long_beep:
-;	Wait_Milli_Seconds(#250)
-;	Wait_Milli_Seconds(#250)
-;	Wait_Milli_Seconds(#250)
-;	Wait_Milli_Seconds(#250)
-;	sjmp beep_loop
-	
 ;6.
 ;Purpose: To read a pushbutton and determine if it is pressed or not
 ;Usage: push_button(#1) checks if button 1 is pressed
@@ -237,7 +185,7 @@ Bootbutton:
 not_pressed:
 	mov a, #0
 	ret
-	
+
 ;7.
 Preheat_Abort mac
 	push AR2
@@ -248,14 +196,13 @@ Preheat_Abort mac
 	pop AR3
 	pop AR2
 endmac
-	
 ?Preheat_Abort_1:
 	mov a, R3
-	cjne a, #0x00, Preheat_Abort_END
+	cjne a, #0x00, Preheat_Done
 	clr c
 	mov a, R2
 	subb a, #0x50
-	jnc Preheat_Abort_END
+	jnc Preheat_Done
 	setb Abort_Flag
-Preheat_Abort_END:
+Preheat_Done:	
 	ret
