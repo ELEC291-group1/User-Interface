@@ -73,6 +73,9 @@ SoakTime_Mins:   ds 2
 ReflowTime_Secs: ds 2
 ReflowTime_Mins: ds 2
 
+pwm_count:	 ds 1
+pwm:		 ds 1
+
 ;arithmetic variables
 x: 			 	 ds 4
 y: 		   		 ds 4
@@ -360,7 +363,14 @@ soak_timer:
 	add a,#0x01
 	da a
 	mov SoakTime_Mins, a
-ContinueISR:	
+ContinueISR:
+
+	inc pwm_count
+	clr c
+	mov a, pwm_count
+	subb a, pwm
+	mov POWER, c
+	
 	clr a
 	mov Count1ms+0, a
 	mov Count1ms+1, a
@@ -879,7 +889,7 @@ DisplayCoolOven:
 ;Run heating logic with SSR until SoakTemp degrees C at ~1-3 C/sec
 ;If CurrTemp >= SoakTemp, jump to DonePreheating	
 Preheat:
-	setb POWER
+	mov pwm, #((255*0)/100) ;100%
 	mov a, BCD_soak_temp ; a = desired temperature
 	clr c
 	subb a, Temperature+1 ; temp = current temperature
@@ -891,7 +901,6 @@ preheat_next:
 	subb a, Temperature+2
 	jz DonePreheating		
 	ljmp ProgramRun_Loop
-
 DonePreheating:
 	clr PreheatState_Flag
 	setb SoakState_Flag
@@ -899,7 +908,7 @@ DonePreheating:
 	cpl TR0
 	Wait_Milli_Seconds(#250)
 	Wait_Milli_Seconds(#250)
-	cpl Tr0
+	cpl TR0
  	ljmp ProgramRun_Loop
 ;Run logic to Maintain temperature at SoakTemp degrees C for SoakTime Seconds
 ;After soaktime seconds, jump to DoneSoaking
@@ -908,17 +917,7 @@ DonePreheating:
 ;if temp >= soak temp, power off
 ;else, power on
 Soak:
-	mov a, BCD_soak_temp+1 ;upper bits
-	cjne a, Temperature+2, Soak_Continue
-	clr c
-	mov a, BCD_soak_temp; lower bits
-	subb a, Temperature+1; lower bits
-	jc Soak_Power_Off
-	setb POWER
-	sjmp Soak_Continue
-Soak_Power_Off:
-	clr POWER
-Soak_Continue:
+	mov pwm, #((255*80)/100) ;20%
 	mov a, BCD_soak_time+1; upper
 	cjne a, SoakTime_Mins, Soak_Continue_2
 	clr c
@@ -934,12 +933,12 @@ Soak_Done:
 	cpl TR0
 	Wait_Milli_Seconds(#250)
 	Wait_Milli_Seconds(#250)
-	cpl Tr0
+	cpl TR0
 	ljmp ProgramRun_Loop
 ;Run logic to heat until ReflowTemp degrees C is reached at ~1-3 C /sec
 ;After CurrTemp >= ReflowTemp, jump to DoneRamping
 Ramp:
-	setb POWER
+	mov pwm, #((255*0)/100) ;100%
 	mov a, BCD_reflow_temp
 	clr c
 	subb a, Temperature+1
@@ -966,20 +965,7 @@ DoneRamping:
 ;Then logic to run until cooled <= ReflowTemp
 ;When it cools below ReflowTemp, jump to DoneReflowing
 Reflow:
-	mov a, BCD_reflow_temp
-	clr c
-	subb a, Temperature+1
-	jc reflow_next
-	sjmp continue_reflow
-reflow_next:
-	mov a, BCD_reflow_temp+1
-	clr c
-	cjne a, Temperature+2, power_on_reflow
-	clr POWER
-	sjmp continue_reflow
-power_on_reflow:
-	setb POWER
-continue_reflow:	
+	mov pwm, #((255*80)/100) ;20%	
 	mov a, BCD_reflow_time+1
 	jz CheckSecs_Reflowing
 checksecs:
@@ -1002,13 +988,13 @@ DoneReflowing:
 	cpl TR0
 	Wait_Milli_Seconds(#250)
 	Wait_Milli_Seconds(#250)
-	cpl Tr0
+	cpl TR0
 	ljmp ProgramRun_Loop
 
 ;Run logic to turn oven off and set a 'CoolEnoughToOpen' flag (which will trigger certain beeps) once it is cool enough to open the oven door
 ;And once it is cool enough to touch, set the 'CoolEnoughToTouch' flag (which triggers other beeps)
 Cooldown:
-	clr POWER
+	mov pwm, #((255*100)/100) ;0%
 	mov a, #0x60
 	clr c
 	subb a, Temperature+1
@@ -1028,30 +1014,28 @@ DoneCoolDown:
 	Wait_Milli_Seconds(#250)
 	Wait_Milli_Seconds(#250)
 	Wait_Milli_Seconds(#250)
-	cpl Tr0
+	cpl TR0
 	ljmp ProgramRun_Loop
 	
 OpenOven:
 	mov a, #0x30
 	clr c
 	subb a, Temperature+1
-	jc OpenOven_next
+	jnc OpenOven_done
 	ljmp ProgramRun_Loop
-OpenOven_next:
-	mov a, Temperature+2
-	jz OpenOven_done
-	ljmp ProgramRun_Loop
-	
+;OpenOven_next:
+;	mov a, Temperature+2
+;	jz OpenOven_done
+;	ljmp ProgramRun_Loop
 OpenOven_done:
 	clr Cooldowntouch_Flag
 	setb Transition_Flag
 	setb CoolEnoughToTouch_Flag
-	ljmp ProgramRun_Loop
-	
+	ljmp ProgramRun_Loop	
 Abort:
 	;Program will jump here from ProgramRun: if it does, send command to turn off oven, stopping the program
 	;Clear screen first before displaying abort message
-	clr POWER
+	mov pwm, #((255*100)/100) ;0%
 	
 	WriteCommand(#0x28)
 	WriteCommand(#0x0c)
