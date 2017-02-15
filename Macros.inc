@@ -72,15 +72,11 @@ endmac
 ;2.
 ?MonitorTemp:
 	mov a, R2
-	clr c
-	subb a,#MAX_TEMP_UPPER 
-	jnc CheckLower
-	sjmp TempMonitorReturn 
-	
+	cjne a, #0x02,  TempMonitorReturn 
 CheckLower:
 	mov a, R3
 	clr c
-	subb a,#MAX_TEMP_LOWER
+	subb a, #0x35
 	jnc Abort_mac
 	sjmp TempMonitorReturn
 			 
