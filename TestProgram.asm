@@ -889,7 +889,8 @@ DisplayCoolOven:
 ;Run heating logic with SSR until SoakTemp degrees C at ~1-3 C/sec
 ;If CurrTemp >= SoakTemp, jump to DonePreheating	
 Preheat:
-	mov pwm, #((255*0)/100) ;100%
+	setb POWER
+	;mov pwm, #((255*0)/100) ;100%
 	mov a, BCD_soak_temp ; a = desired temperature
 	clr c
 	subb a, Temperature+1 ; temp = current temperature
@@ -938,7 +939,8 @@ Soak_Done:
 ;Run logic to heat until ReflowTemp degrees C is reached at ~1-3 C /sec
 ;After CurrTemp >= ReflowTemp, jump to DoneRamping
 Ramp:
-	mov pwm, #((255*0)/100) ;100%
+	setb POWER
+	;mov pwm, #((255*0)/100) ;100%
 	mov a, BCD_reflow_temp
 	clr c
 	subb a, Temperature+1
@@ -994,7 +996,8 @@ DoneReflowing:
 ;Run logic to turn oven off and set a 'CoolEnoughToOpen' flag (which will trigger certain beeps) once it is cool enough to open the oven door
 ;And once it is cool enough to touch, set the 'CoolEnoughToTouch' flag (which triggers other beeps)
 Cooldown:
-	mov pwm, #((255*100)/100) ;0%
+	clr POWER
+	;mov pwm, #((255*100)/100) ;0%
 	mov a, #0x60
 	clr c
 	subb a, Temperature+1
@@ -1035,7 +1038,8 @@ OpenOven_done:
 Abort:
 	;Program will jump here from ProgramRun: if it does, send command to turn off oven, stopping the program
 	;Clear screen first before displaying abort message
-	mov pwm, #((255*100)/100) ;0%
+	;mov pwm, #((255*100)/100) ;0%
+	clr POWER
 	
 	WriteCommand(#0x28)
 	WriteCommand(#0x0c)
