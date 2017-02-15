@@ -815,13 +815,15 @@ DontAbort:
 	;State loops do their own checks quickly, and come back to the program run loop, which does the constant temp monitoring/display/spi logic
 	jb PreheatState_Flag, DisplayPreheat			; 1 beep
 	jb SoakState_Flag, DisplaySoak				; 1 beep
-	jb RampState_Flag, DisplayRamp				; 1 beep
+	jb RampState_Flag, DisplayRamp_jump			; 1 beep
 	jb ReflowState_Flag, DisplayReflow_jump			; 1 beep
 	jb CooldownState_Flag, DisplayCooldown_jump		; 1 beep
 	jb CoolEnoughToOpen_Flag, DisplayCoolOven_jump		; 1 long beep
 	jb CoolEnoughToTouch_Flag, DisplayTouch_jump		; 6 short beeps
 	ljmp ProgramRun_Loop
 	
+DisplayRamp_jump:
+	ljmp DisplayRamp
 DisplayReflow_jump:
 	ljmp DisplayReflow
 DisplayCooldown_jump:
