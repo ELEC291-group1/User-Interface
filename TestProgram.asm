@@ -1032,8 +1032,7 @@ ENDBEEPS:
 	dec a
 	jnz ENDBEEPS
 	clr TR0
-	ljmp ENDLOOP
-	ljmp ProgramRun_Loop	
+	ljmp ENDLOOP	
 Abort:
 	;Program will jump here from ProgramRun: if it does, send command to turn off oven, stopping the program
 	;Clear screen first before displaying abort message
