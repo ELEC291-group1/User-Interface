@@ -778,6 +778,13 @@ ProgramRun_Loop:
 	Read_ADC_Channel(0)
 	lcall ConvertNum; converts voltage received to temperature
 	
+	Send_BCD(Temperature+2)
+	Send_BCD(Temperature+1)
+    	mov a,#'\r'
+    	lcall putchar
+    	mov a,#'\n'
+    	lcall putchar
+	
 	jnb HalfSecond_Flag, DontPrintTemp
 	Set_Cursor(1,10)
 	Display_BCD(Temperature+2);upper bits of temp bcd
