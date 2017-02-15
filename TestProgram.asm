@@ -98,8 +98,7 @@ soak_menu_flag: 		dbit 1
 reflow_menu_flag:		dbit 1
 
 ;Transition Flag turns on when state is changing, and turns off shortly afterwards
-;Use with State flags in logic in order to determine what to do eg. beeps to play when x state is (just recently) on and transition flag is on as well
-Transition_Flag: 		dbit 1 
+;Use with State flags in logic in order to determine what to do eg. beeps to play when x state is (just recently) on and transition flag is on as well 
 
 CoolEnoughToOpen_Flag: 		dbit 1
 CoolEnoughToTouch_Flag: 	dbit 1
@@ -133,8 +132,10 @@ LCD_D5  	EQU P3.3
 LCD_D6  	EQU P3.4
 LCD_D7  	EQU P3.5
 
-SOUND_OUT EQU P3.7 ;Temp value, modify to whatever pin is attached to speaker
-POWER     EQU P2.4
+SOUND_OUT   EQU P3.7 ;Temp value, modify to whatever pin is attached to speaker
+POWER       EQU P3.6
+TRANSITION  EQU P2.4
+
 ;Pushbutton pins
 Button_1      	EQU P0.1 ;1
 Button_2      	EQU P0.3 ;2
@@ -420,8 +421,7 @@ MainProgram:
     	clr ReflowState_Flag
     	clr CooldownState_Flag
     	setb PreheatState_Flag ;Set Preheat flag to 1 at power on (it won't start preheating until it gets to that loop via Start button)
-    
-    	clr Transition_Flag
+       	clr TRANSITION
     	clr mf
     	clr CoolEnoughToOpen_Flag
 	clr CoolEnoughToTouch_Flag
@@ -895,7 +895,7 @@ preheat_next:
 DonePreheating:
 	clr PreheatState_Flag
 	setb SoakState_Flag
-	setb Transition_Flag
+	setb TRANSITION
 	cpl TR0
 	Wait_Milli_Seconds(#250)
 	Wait_Milli_Seconds(#250)
@@ -920,7 +920,7 @@ Soak_Continue_2:
 Soak_Done:
 	clr SoakState_Flag
 	setb RampState_Flag
-	setb Transition_Flag
+	setb TRANSITION
 	cpl TR0
 	Wait_Milli_Seconds(#250)
 	Wait_Milli_Seconds(#250)
@@ -945,7 +945,7 @@ ramp_next:
 DoneRamping:
 	clr RampState_Flag
 	setb ReflowState_Flag
-	setb Transition_Flag
+	setb TRANSITION
 	cpl TR0
 	Wait_Milli_Seconds(#250)
 	Wait_Milli_Seconds(#250)
@@ -975,7 +975,7 @@ program_jump:
 DoneReflowing:
 	clr ReflowState_Flag
 	setb CooldownState_Flag
-	setb Transition_Flag
+	setb TRANSITION
 	cpl TR0
 	Wait_Milli_Seconds(#250)
 	Wait_Milli_Seconds(#250)
@@ -998,7 +998,7 @@ cooldown_next:
 	
 DoneCoolDown:
 	clr CooldownState_Flag
-	setb Transition_Flag
+	setb TRANSITION
 	setb CoolEnoughToOpen_Flag
 	cpl TR0
 	Wait_Milli_Seconds(#250)
@@ -1020,7 +1020,7 @@ OpenOven_next:
 	ljmp ProgramRun_Loop
 OpenOven_done:
 	clr Cooldowntouch_Flag
-	setb Transition_Flag
+	setb TRANSITION
 	setb CoolEnoughToTouch_Flag
 	Set_Cursor(2,8)
 	Send_Constant_String(#PCBDone)
