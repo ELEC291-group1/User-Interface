@@ -99,7 +99,7 @@ reflow_menu_flag:		dbit 1
 
 ;Transition Flag turns on when state is changing, and turns off shortly afterwards
 ;Use with State flags in logic in order to determine what to do eg. beeps to play when x state is (just recently) on and transition flag is on as well
-Transition_Flag: 		dbit 1 
+;Transition_Flag: 		dbit 1 
 
 CoolEnoughToOpen_Flag: 		dbit 1
 CoolEnoughToTouch_Flag: 	dbit 1
@@ -135,6 +135,7 @@ LCD_D7  	EQU P3.5
 
 SOUND_OUT EQU P3.7 ;Temp value, modify to whatever pin is attached to speaker
 POWER     EQU P2.4
+TRANSITION EQU P0.7
 ;Pushbutton pins
 Button_1      	EQU P0.1 ;1
 Button_2      	EQU P0.3 ;2
@@ -422,7 +423,7 @@ MainProgram:
     	clr CooldownState_Flag
     	setb PreheatState_Flag ;Set Preheat flag to 1 at power on (it won't start preheating until it gets to that loop via Start button)
     
-    	clr Transition_Flag
+    	clr TRANSITION
     	clr mf
     	clr CoolEnoughToOpen_Flag
 		clr CoolEnoughToTouch_Flag
@@ -781,14 +782,13 @@ ProgramRun_Loop:
 	Read_ADC_Channel(0)
 	lcall ConvertNum; converts voltage received to temperature
 	
-	;Send_BCD(Temperature+2)
-	;Send_BCD(Temperature+1)
-    ;	mov a,#'\r'
-    ;	lcall putchar
-    ;	mov a,#'\n'
-    ;	lcall putchar
-	
 	jnb HalfSecond_Flag, DontPrintTemp
+	Send_BCD(Temperature+2)
+	Send_BCD(Temperature+1)
+    	mov a,#'\r'
+    	lcall putchar
+    	mov a,#'\n'
+    	lcall putchar
 	Set_Cursor(1,7)
 	Display_BCD(Temperature+2)
 	Set_Cursor(1,9)
@@ -819,25 +819,10 @@ Abortx:
 	
 DontAbort:
 	clr seconds_flag ;keep clearing the seconds flag so it doesn't accidentally incrmeent seconds more than once
-	;Serially send the current temp so that python can do a stripchart	
-	;Wait_Milli_Seconds(#250)
-	;Wait_Milli_Seconds(#250);wait half a second
-	;Send_BCD(Temperature+2)
-	;Send_BCD(Temperature+1)
-	;mov a, #'.'
-	;lcall putchar
-	;Send_BCD(Temperature+0)
-	;mov a, #' '
-	;lcall putchar
-	;mov a, #'C'
-	;lcall putchar
-    	;mov a,#'\r'
-    	;lcall putchar
-    	;mov a,#'\n'
-    	;lcall putchar	
 	;Here we can check CurrentState flags, IE ReflowState_Flag
 	;Depending on the current set state flag, jump to state loops until that state logic is done (ie when reflow state ends, ReflowState_Flag gets set to zero and CooldownState_Flag gets set to 1)
 	;State loops do their own checks quickly, and come back to the program run loop, which does the constant temp monitoring/display/spi logic
+	clr TRANSITION
 	jb PreheatState_Flag, DisplayPreheat			; 1 beep
 	jb SoakState_Flag, DisplaySoak				; 1 beep
 	jb RampState_Flag, DisplayRamp_jump			; 1 beep
@@ -909,7 +894,7 @@ preheat_next:
 DonePreheating:
 	clr PreheatState_Flag
 	setb SoakState_Flag
-	setb Transition_Flag
+	setb TRANSITION
 	cpl TR0
 	Wait_Milli_Seconds(#250)
 	Wait_Milli_Seconds(#250)
@@ -934,7 +919,7 @@ Soak_Continue_2:
 Soak_Done:
 	clr SoakState_Flag
 	setb RampState_Flag
-	setb Transition_Flag
+	setb TRANSITION
 	cpl TR0
 	Wait_Milli_Seconds(#250)
 	Wait_Milli_Seconds(#250)
@@ -956,7 +941,7 @@ Ramp_Continue:
 DoneRamping:
 	clr RampState_Flag
 	setb ReflowState_Flag
-	setb Transition_Flag
+	setb TRANSITION
 	cpl TR0
 	Wait_Milli_Seconds(#250)
 	Wait_Milli_Seconds(#250)
@@ -983,7 +968,7 @@ Reflow_program_jump:
 DoneReflowing:
 	clr ReflowState_Flag
 	setb CooldownState_Flag
-	setb Transition_Flag
+	setb TRANSITION
 	cpl TR0
 	Wait_Milli_Seconds(#250)
 	Wait_Milli_Seconds(#250)
@@ -1006,7 +991,7 @@ cooldown_next:
 	
 DoneCoolDown:
 	clr CooldownState_Flag
-	setb Transition_Flag
+	setb TRANSITION
 	setb CoolEnoughToOpen_Flag
 	cpl TR0
 	Wait_Milli_Seconds(#250)
@@ -1028,7 +1013,6 @@ OpenOven_next:
 	ljmp ProgramRun_Loop
 OpenOven_done:
 	clr Cooldowntouch_Flag
-	setb Transition_Flag
 	setb CoolEnoughToTouch_Flag
 	Set_Cursor(2,8)
 	Send_Constant_String(#PCBDone)
@@ -1040,6 +1024,7 @@ ENDBEEPS:
 	dec a
 	jnz ENDBEEPS
 	clr TR0
+	setb TRANSITION
 	ljmp ENDLOOP	
 Abort:
 	;Program will jump here from ProgramRun: if it does, send command to turn off oven, stopping the program
