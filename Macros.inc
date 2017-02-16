@@ -82,11 +82,9 @@ CheckLower:
 	subb a, #0x35
 	jnc Abort_mac
 	sjmp TempMonitorReturn
-
 ;If any unsafe conditions above are met, the program will jump here, and set this flag which will shut down the program in a timer0 interrupt
 Abort_mac:
 	setb Abort_Flag
-	ret
 TempMonitorReturn:
 	ret
 
