@@ -146,6 +146,7 @@ BOOT_BUTTON   	EQU P4.5 ;5
 Temp_Message:	db '>TEMP', 0
 State_Message:	db '>STATE', 0
 Time_Message:	db '>TIME', 0
+dot:			db '.',0
 TEST_1:		db '<"DONE" TO EXIT>', 0
 soak_message:	db ' Soak         B1', 0
 reflow_message:	db ' Reflow       B2', 0
@@ -424,25 +425,26 @@ MainProgram:
     	clr Transition_Flag
     	clr mf
     	clr CoolEnoughToOpen_Flag
-	clr CoolEnoughToTouch_Flag
-	clr soak_menu_flag
-	clr reflow_menu_flag
-	clr POWER
-	clr Length_Flag
+		clr CoolEnoughToTouch_Flag
+		clr soak_menu_flag
+		clr reflow_menu_flag
+		clr POWER
+		mov pwm, #0x00
+		clr Length_Flag
     
     	;Set Presets
     	mov BCD_soak_temp, 	#0x40
-	mov BCD_soak_temp+1, 	#0x01
-	mov BCD_reflow_temp, 	#0x19
-	mov BCD_reflow_temp+1,	#0x02
+		mov BCD_soak_temp+1, 	#0x01
+		mov BCD_reflow_temp, 	#0x19
+		mov BCD_reflow_temp+1,	#0x02
 	
-	mov BCD_soak_time, 	#0x00
-	mov BCD_soak_time+1,	#0x01
-	mov BCD_reflow_time, 	#0x30
-	mov BCD_reflow_time+1,	#0x00
+		mov BCD_soak_time, 	#0x00
+		mov BCD_soak_time+1,	#0x01
+		mov BCD_reflow_time, 	#0x30
+		mov BCD_reflow_time+1,	#0x00
 	
-	mov Mins_BCD, 		#0x00
-	mov Secs_BCD, 		#0x00 
+		mov Mins_BCD, 		#0x00
+		mov Secs_BCD, 		#0x00 
 	
 	;Zero the runtime of the reflow state
 	mov ReflowTime_Secs, 	#0x00
@@ -757,7 +759,8 @@ ProgramRun:
 	Wait_Milli_Seconds(#250)
 	Wait_Milli_Seconds(#250)
 	cpl TR0
-	mov pwm, #((255*0)/100) ;100%
+	clr POWER
+	mov pwm, #0x00
 	;Display the program headings (Runtime, State, and Temp at current time)	
 	;Display Current runtime on top of LCD, as well as state
 	Set_Cursor(1,1)
@@ -778,18 +781,22 @@ ProgramRun_Loop:
 	Read_ADC_Channel(0)
 	lcall ConvertNum; converts voltage received to temperature
 	
-	Send_BCD(Temperature+2)
-	Send_BCD(Temperature+1)
-    	mov a,#'\r'
-    	lcall putchar
-    	mov a,#'\n'
-    	lcall putchar
+	;Send_BCD(Temperature+2)
+	;Send_BCD(Temperature+1)
+    ;	mov a,#'\r'
+    ;	lcall putchar
+    ;	mov a,#'\n'
+    ;	lcall putchar
 	
 	jnb HalfSecond_Flag, DontPrintTemp
-	Set_Cursor(1,10)
-	Display_BCD(Temperature+2);upper bits of temp bcd
+	Set_Cursor(1,7)
+	Display_BCD(Temperature+2)
+	Set_Cursor(1,9)
+	Display_BCD(Temperature+1);upper bits of temp bcd
+	Set_Cursor(1,11)
+	Send_Constant_String(#dot)
 	Set_Cursor(1,12)
-	Display_BCD(Temperature+1);lower bits of temp bcd
+	Display_BCD(Temperature+0);lower bits of temp bcd
 	clr HalfSecond_Flag
 DontPrintTemp:	
 	;Monitor for abort button (B6) at all times and if pressed, set Abort_Flag
@@ -887,7 +894,7 @@ DisplayCoolOven:
 ;Run heating logic with SSR until SoakTemp degrees C at ~1-3 C/sec
 ;If CurrTemp >= SoakTemp, jump to DonePreheating	
 Preheat:
-	mov pwm, #((255*100)/100) ;100%
+	mov pwm, #255 ;100%
 	mov a, BCD_soak_temp ; a = desired temperature
 	clr c
 	subb a, Temperature+1 ; temp = current temperature
@@ -915,7 +922,7 @@ DonePreheating:
 ;if temp >= soak temp, power off
 ;else, power on
 Soak:
-	mov pwm, #((255*20)/100) ;20%
+	mov pwm, #102 ;40%
 	mov a, BCD_soak_time+1; upper
 	cjne a, SoakTime_Mins, Soak_Continue_2
 	clr c
@@ -936,19 +943,16 @@ Soak_Done:
 ;Run logic to heat until ReflowTemp degrees C is reached at ~1-3 C /sec
 ;After CurrTemp >= ReflowTemp, jump to DoneRamping
 Ramp:
-	mov pwm, #((255*100)/100) ;100%
-	mov a, BCD_reflow_temp
-	clr c
-	subb a, Temperature+1
-	jc ramp_next
-	ljmp ProgramRun_Loop
-ramp_next:
+	mov pwm, #255 ;100%
 	mov a, BCD_reflow_temp+1
+	cjne a, Temperature+2, Ramp_Continue
+ramp_next:
 	clr c
-	subb a, Temperature+2
-	jz DoneRamping
-	ljmp ProgramRun_Loop
-	
+	mov a, BCD_reflow_temp
+	subb a, Temperature+1
+	jc DoneRamping
+Ramp_Continue:
+	ljmp ProgramRun_Loop	
 DoneRamping:
 	clr RampState_Flag
 	setb ReflowState_Flag
@@ -963,20 +967,17 @@ DoneRamping:
 ;Then logic to run until cooled <= ReflowTemp
 ;When it cools below ReflowTemp, jump to DoneReflowing
 Reflow:
-	mov pwm, #((255*20)/100) ;10%	
+	mov pwm, #((255*20)/100) ;20%	
 	mov a, BCD_reflow_time+1
-	jz CheckSecs_Reflowing
-checksecs:
-	mov a, ReflowTime_Secs
-	cjne a, #0x00, program_jump
-	sjmp DoneReflowing	
+	cjne a, ReflowTime_Mins, Reflow_program_jump
 CheckSecs_Reflowing:
 	mov a, BCD_reflow_time ;lower
 	clr c
 	subb a, ReflowTime_Secs
 	jc DoneReflowing
-	jz CheckSecs_Reflowing
-program_jump:
+	cjne a, #0x00, Reflow_program_jump
+	ljmp DoneReflowing
+Reflow_program_jump:
 	ljmp ProgramRun_Loop
 	
 DoneReflowing:
@@ -992,7 +993,7 @@ DoneReflowing:
 ;Run logic to turn oven off and set a 'CoolEnoughToOpen' flag (which will trigger certain beeps) once it is cool enough to open the oven door
 ;And once it is cool enough to touch, set the 'CoolEnoughToTouch' flag (which triggers other beeps)
 Cooldown:
-	mov pwm, #((255*0)/100) ;0%
+	mov pwm, #0x00 ;0%
 	mov a, Temperature+1
 	clr c
 	subb a, #0x60
@@ -1043,7 +1044,7 @@ ENDBEEPS:
 Abort:
 	;Program will jump here from ProgramRun: if it does, send command to turn off oven, stopping the program
 	;Clear screen first before displaying abort message
-	mov pwm, #((255*0)/100) ;0%
+	mov pwm, #0x00 ;0%
 	
 	WriteCommand(#0x28)
 	WriteCommand(#0x0c)
