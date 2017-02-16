@@ -422,8 +422,7 @@ MainProgram:
     	clr ReflowState_Flag
     	clr CooldownState_Flag
     	setb PreheatState_Flag ;Set Preheat flag to 1 at power on (it won't start preheating until it gets to that loop via Start button)
-    
-    	clr TRANSITION
+   
     	clr mf
     	clr CoolEnoughToOpen_Flag
 		clr CoolEnoughToTouch_Flag
@@ -757,9 +756,11 @@ ProgramRun:
 	Wait_Milli_Seconds(#10) ;Wait for the clear to finish
 	
 	setb EA   ; Enable Global interrupts
+	setb TRANSITION
 	Wait_Milli_Seconds(#250)
 	Wait_Milli_Seconds(#250)
 	cpl TR0
+	clr TRANSITION
 	clr POWER
 	mov pwm, #0x00
 	;Display the program headings (Runtime, State, and Temp at current time)	
@@ -822,7 +823,6 @@ DontAbort:
 	;Here we can check CurrentState flags, IE ReflowState_Flag
 	;Depending on the current set state flag, jump to state loops until that state logic is done (ie when reflow state ends, ReflowState_Flag gets set to zero and CooldownState_Flag gets set to 1)
 	;State loops do their own checks quickly, and come back to the program run loop, which does the constant temp monitoring/display/spi logic
-	clr TRANSITION
 	jb PreheatState_Flag, DisplayPreheat			; 1 beep
 	jb SoakState_Flag, DisplaySoak				; 1 beep
 	jb RampState_Flag, DisplayRamp_jump			; 1 beep
@@ -899,6 +899,7 @@ DonePreheating:
 	Wait_Milli_Seconds(#250)
 	Wait_Milli_Seconds(#250)
 	cpl TR0
+	clr TRANSITION
  	ljmp ProgramRun_Loop
 ;Run logic to Maintain temperature at SoakTemp degrees C for SoakTime Seconds
 ;After soaktime seconds, jump to DoneSoaking
@@ -924,6 +925,7 @@ Soak_Done:
 	Wait_Milli_Seconds(#250)
 	Wait_Milli_Seconds(#250)
 	cpl TR0
+	clr TRANSITION
 	ljmp ProgramRun_Loop
 ;Run logic to heat until ReflowTemp degrees C is reached at ~1-3 C /sec
 ;After CurrTemp >= ReflowTemp, jump to DoneRamping
@@ -946,6 +948,7 @@ DoneRamping:
 	Wait_Milli_Seconds(#250)
 	Wait_Milli_Seconds(#250)
 	cpl TR0
+	clr TRANSITION
 	ljmp ProgramRun_Loop
 
 ;Run logic to heat until max temp at some deg/s
@@ -973,6 +976,7 @@ DoneReflowing:
 	Wait_Milli_Seconds(#250)
 	Wait_Milli_Seconds(#250)
 	cpl TR0
+	clr TRANSITION
 	ljmp ProgramRun_Loop
 
 ;Run logic to turn oven off and set a 'CoolEnoughToOpen' flag (which will trigger certain beeps) once it is cool enough to open the oven door
@@ -996,6 +1000,7 @@ DoneCoolDown:
 	cpl TR0
 	Wait_Milli_Seconds(#250)
 	Wait_Milli_Seconds(#250)
+	clr TRANSITION
 	Wait_Milli_Seconds(#250)
 	Wait_Milli_Seconds(#250)
 	cpl TR0
@@ -1019,12 +1024,13 @@ OpenOven_done:
 	mov a, #0x0C
 ENDBEEPS:
 	cpl TR0
+	setb TRANSITION
 	Wait_Milli_Seconds(#250)
 	Wait_Milli_Seconds(#250)
 	dec a
 	jnz ENDBEEPS
 	clr TR0
-	setb TRANSITION
+	clr TRANSITION
 	ljmp ENDLOOP	
 Abort:
 	;Program will jump here from ProgramRun: if it does, send command to turn off oven, stopping the program
